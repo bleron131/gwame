@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<!-- Damit das Spiel auf dem Handy richtig gross angezeigt wird -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Idle Fabrik</title>
+
+<style>
+  /* ===== Farben an einer Stelle, damit man sie leicht ändern kann ===== */
+  :root {
+    --hintergrund: #1d2433;
+    --karte: #2a3347;
+    --karte-hell: #34405a;
+    --text: #f2f4f8;
+    --text-grau: #9aa5bd;
+    --gruen: #3ecf6e;
+    --gelb: #ffc94a;
+    --blau: #4aa8ff;
+    --rot: #ff6b6b;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--hintergrund);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    /* Verhindert, dass beim schnellen Tippen Text markiert wird */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ===== Obere Leiste: Geld und Edelsteine ===== */
+  #oben {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #141a26;
+    box-shadow: 0 2px 8px rgba(0,0,0,.4);
+  }
+  .waehrung { font-size: 22px; font-weight: 800; }
+  #geld { color: var(--gruen); }
+  #edelsteine { color: #c58bff; font-size: 18px; }
+
+  /* ===== Spielbereich ===== */
+  #spiel {
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 12px 16px 90px; /* unten Platz für die untere Leiste */
+  }
+
+  .pfeil {
+    text-align: center;
+    color: var(--text-grau);
+    font-size: 18px;
+    margin: 2px 0;
+  }
+
+  /* ===== Eine Karte = eine Station (Halle, Wagen oder Verkauf) ===== */
+  .karte {
+    position: relative;
+    background: var(--karte);
+    border-radius: 14px;
+    padding: 12px;
+    cursor: pointer;
+    transition: transform .08s;
+    overflow: hidden;
+  }
+  /* Kleiner "Drück"-Effekt beim Antippen */
+  .karte.gedrueckt { transform: scale(.97); }
+  /* Wackeln, wenn man tippt, aber nichts zu tun ist */
+  .karte.wackeln { animation: wackeln .3s; }
+  @keyframes wackeln {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+
+  .kopf { display: flex; align-items: center; gap: 10px; }
+  .icon { font-size: 34px; }
+  .name { font-weight: 700; font-size: 17px; }
+  .level { color: var(--gelb); font-size: 13px; font-weight: 700; }
+  .info { color: var(--text-grau); font-size: 13px; margin-top: 2px; }
+  .vorrat { margin-left: auto; text-align: right; font-size: 13px; color: var(--text-grau); }
+  .vorrat b { display: block; color: var(--text); font-size: 16px; }
+
+  /* Fortschrittsbalken */
+  .balken {
+    height: 12px;
+    background: #1a2030;
+    border-radius: 6px;
+    margin: 10px 0;
+    overflow: hidden;
+  }
+  .balken-fuellung {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--blau), var(--gruen));
+    border-radius: 6px;
+  }
+
+  .unten-zeile { display: flex; align-items: center; gap: 8px; }
+  .hinweis { color: var(--gelb); font-size: 13px; font-weight: 600; flex: 1; }
+
+  /* Upgrade-Knopf */
+  .upgrade {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 700;
+    background: var(--gruen);
+    color: #0d2a17;
+    cursor: pointer;
+    min-width: 120px;
+  }
+  .upgrade.zu-teuer { background: var(--karte-hell); color: var(--text-grau); }
+
+  /* ===== Fliegendes Geld (+$5) ===== */
+  .flieg {
+    position: fixed;
+    pointer-events: none; /* damit es keine Klicks blockiert */
+    font-weight: 800;
+    font-size: 20px;
+    color: var(--gruen);
+    text-shadow: 0 2px 4px rgba(0,0,0,.6);
+    animation: hochfliegen 1s ease-out forwards;
+    z-index: 20;
+  }
+  @keyframes hochfliegen {
+    from { transform: translate(-50%, 0); opacity: 1; }
+    to   { transform: translate(-50%, -70px); opacity: 0; }
+  }
+
+  /* ===== Untere Leiste (hier kommt später der Shop hin) ===== */
+  #unten {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: #141a26;
+    box-shadow: 0 -2px 8px rgba(0,0,0,.4);
+  }
+  #unten button {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    background: var(--karte-hell);
+    color: var(--text);
+    cursor: pointer;
+  }
+  #reset { color: var(--rot) !important; }
+</style>
+</head>
+
+<body>
+
+<!-- Obere Leiste -->
+<div id="oben">
+  <div class="waehrung" id="geld">$0</div>
+  <div class="waehrung" id="edelsteine">💎 0</div>
+</div>
+
+<!-- Hier fügt JavaScript die Karten ein -->
+<div id="spiel"></div>
+
+<!-- Untere Leiste -->
+<div id="unten">
+  <button id="speichern">💾 Speichern</button>
+  <button id="reset">🗑️ Neu starten</button>
+</div>
+
+<script>
+/* =====================================================================
+   1. ZAHLEN SCHÖN ANZEIGEN
+   Aus 1500 wird "1.50K", aus 2300000 wird "2.30M" usw.
+   ===================================================================== */
+
+// Die Abkürzungen: K = Tausend, M = Million, B = Milliarde, T = Billion
+const EINHEITEN = ['', 'K', 'M', 'B', 'T'];
+// Danach geht es weiter mit aa, ab, ac ... zz (wie im Original)
+for (let a = 0; a < 26; a++) {
+  for (let b = 0; b < 26; b++) {
+    EINHEITEN.push(String.fromCharCode(97 + a) + String.fromCharCode(97 + b));
+  }
+}
+
+function zahl(n) {
+  if (n < 1000) {
+    // Kleine Zahlen: ganze Zahl (unter 10 mit einer Nachkommastelle)
+    return n < 10 ? (Math.floor(n * 10) / 10).toString() : Math.floor(n).toString();
+  }
+  // So lange durch 1000 teilen, bis die Zahl klein ist
+  let i = 0;
+  while (n >= 1000 && i < EINHEITEN.length - 1) {
+    n = n / 1000;
+    i++;
+  }
+  // Abrunden (nicht aufrunden), damit man nie mehr Geld sieht, als man hat
+  let text;
+  if (n < 10) text = (Math.floor(n * 100 + 1e-9) / 100).toFixed(2); // 1.52K
+  else if (n < 100) text = (Math.floor(n * 10 + 1e-9) / 10).toFixed(1);   // 15.2K
+  else text = Math.floor(n).toString();                            // 152K
+  return text + EINHEITEN[i];
+}
+
+function geldText(n) { return '$' + zahl(n); }
+
+
+/* =====================================================================
+   2. DIE STATIONEN UND IHRE WERTE (Balance)
+   Jede Station hat:
+   - zeit:  wie viele Sekunden eine Runde dauert
+   - wert:  wie viel sie pro Runde schafft (abhängig vom Level)
+   - kosten: was das nächste Level kostet
+   Die Kosten steigen schneller als der Wert. Darum wird es später langsamer.
+   ===================================================================== */
+
+const STATIONEN = {
+  verkauf: {
+    name: 'Verkauf',
+    icon: '🏪',
+    zeit: 3,
+    wert:   level => 15 * level * Math.pow(1.05, level - 1),  // verkauft bis zu so viel $ pro Runde
+    kosten: level => 25 * Math.pow(1.17, level - 1),
+    wertName: 'Verkauft bis'
+  },
+  wagen: {
+    name: 'Lieferwagen',
+    icon: '🚚',
+    zeit: 4,
+    wert:   level => 15 * level * Math.pow(1.05, level - 1),  // kann so viel $ an Waren tragen
+    kosten: level => 25 * Math.pow(1.17, level - 1),
+    wertName: 'Ladung bis'
+  },
+  halle: {
+    name: 'Halle 1',
+    icon: '🏭',
+    zeit: 3,
+    wert:   level => 5 * level * Math.pow(1.05, level - 1),   // stellt Waren im Wert von so viel $ her
+    kosten: level => 10 * Math.pow(1.15, level - 1),
+    wertName: 'Herstellung'
+  }
+};
+
+// Reihenfolge auf dem Bildschirm (oben nach unten)
+const REIHENFOLGE = ['verkauf', 'wagen', 'halle'];
+
+// Wie viel ein Tipp eine laufende Runde beschleunigt (0.25 = 25 %)
+const TIPP_SCHUB = 0.25;
+
+
+/* =====================================================================
+   3. DER SPIELSTAND
+   Alles, was gespeichert werden muss, steckt in "spiel".
+   ===================================================================== */
+
+const SPEICHER_NAME = 'idleFabrik_v1';
+
+function neuesSpiel() {
+  return {
+    geld: 0,
+    edelsteine: 0,
+    // Jede Station: Level, Fortschritt (0 bis 1), läuft gerade?, Vorrat
+    halle:   { level: 1, fortschritt: 0, laeuft: false, vorrat: 0 }, // fertige Waren, die abgeholt werden
+    wagen:   { level: 1, fortschritt: 0, laeuft: false },
+    verkauf: { level: 1, fortschritt: 0, laeuft: false, vorrat: 0 }, // Waren, die auf Verkauf warten
+    zuletzt: Date.now()
+  };
+}
+
+let spiel = laden();
+
+function laden() {
+  try {
+    const text = localStorage.getItem(SPEICHER_NAME);
+    if (!text) return neuesSpiel();
+    const gespeichert = JSON.parse(text);
+    // Mit einem neuen Spiel mischen: Falls später neue Felder dazukommen,
+    // fehlen sie in alten Spielständen nicht.
+    const frisch = neuesSpiel();
+    for (const key of REIHENFOLGE) {
+      frisch[key] = Object.assign(frisch[key], gespeichert[key]);
+    }
+    frisch.geld = gespeichert.geld || 0;
+    frisch.edelsteine = gespeichert.edelsteine || 0;
+    frisch.zuletzt = gespeichert.zuletzt || Date.now();
+    return frisch;
+  } catch (fehler) {
+    // Falls etwas kaputt ist (oder der Browser Speichern verbietet): neu anfangen
+    return neuesSpiel();
+  }
+}
+
+function speichern() {
+  spiel.zuletzt = Date.now();
+  try {
+    localStorage.setItem(SPEICHER_NAME, JSON.stringify(spiel));
+  } catch (fehler) {
+    // Manche Browser (z. B. privater Modus) erlauben kein Speichern
+  }
+}
+
+
+/* =====================================================================
+   4. KARTEN AUF DEN BILDSCHIRM BAUEN
+   Wir bauen die Karten einmal und merken uns die Teile,
+   die wir später ändern (Texte, Balken, Knopf).
+   ===================================================================== */
+
+const teile = {}; // hier merken wir uns die HTML-Elemente jeder Karte
+
+function kartenBauen() {
+  const bereich = document.getElementById('spiel');
+  REIHENFOLGE.forEach((key, index) => {
+    const s = STATIONEN[key];
+
+    const karte = document.createElement('div');
+    karte.className = 'karte';
+    karte.innerHTML = `
+      <div class="kopf">
+        <div class="icon">${s.icon}</div>
+        <div>
+          <div class="name">${s.name} <span class="level"></span></div>
+          <div class="info"></div>
+        </div>
+        <div class="vorrat"></div>
+      </div>
+      <div class="balken"><div class="balken-fuellung"></div></div>
+      <div class="unten-zeile">
+        <div class="hinweis"></div>
+        <button class="upgrade"></button>
+      </div>`;
+    bereich.appendChild(karte);
+
+    // Pfeil zwischen den Karten (zeigt, wohin die Waren gehen)
+    if (index < REIHENFOLGE.length - 1) {
+      const pfeil = document.createElement('div');
+      pfeil.className = 'pfeil';
+      pfeil.textContent = '▲';
+      bereich.appendChild(pfeil);
+    }
+
+    teile[key] = {
+      karte: karte,
+      level: karte.querySelector('.level'),
+      info: karte.querySelector('.info'),
+      vorrat: karte.querySelector('.vorrat'),
+      balken: karte.querySelector('.balken-fuellung'),
+      hinweis: karte.querySelector('.hinweis'),
+      knopf: karte.querySelector('.upgrade')
+    };
+
+    // Tippen auf die Karte = Station arbeiten lassen
+    karte.addEventListener('click', ereignis => tippen(key, ereignis));
+
+    // Tippen auf den Knopf = Upgrade kaufen
+    teile[key].knopf.addEventListener('click', ereignis => {
+      ereignis.stopPropagation(); // sonst zählt es auch als Tipp auf die Karte
+      kaufen(key);
+    });
+  });
+}
+
+
+/* =====================================================================
+   5. SPIELER-AKTIONEN
+   ===================================================================== */
+
+// Prüft, ob eine Station überhaupt etwas zu tun hat
+function hatArbeit(key) {
+  if (key === 'halle') return true;                     // die Halle kann immer herstellen
+  if (key === 'wagen') return spiel.halle.vorrat > 0;   // Wagen braucht Waren in der Halle
+  if (key === 'verkauf') return spiel.verkauf.vorrat > 0;
+  return false;
+}
+
+function tippen(key, ereignis) {
+  const station = spiel[key];
+  const karte = teile[key].karte;
+
+  if (!station.laeuft) {
+    // Station steht still: starten, aber nur wenn es etwas zu tun gibt
+    if (!hatArbeit(key)) {
+      karte.classList.remove('wackeln');
+      void karte.offsetWidth; // Trick: Animation neu starten
+      karte.classList.add('wackeln');
+      return;
+    }
+    station.laeuft = true;
+    station.fortschritt = 0;
+  } else {
+    // Station läuft schon: jeder Tipp beschleunigt sie
+    station.fortschritt += TIPP_SCHUB;
+  }
+
+  // Kleiner Drück-Effekt
+  karte.classList.add('gedrueckt');
+  setTimeout(() => karte.classList.remove('gedrueckt'), 80);
+}
+
+function kaufen(key) {
+  const station = spiel[key];
+  const preis = STATIONEN[key].kosten(station.level);
+  if (spiel.geld < preis) return; // nicht genug Geld
+  spiel.geld -= preis;
+  station.level++;
+}
+
+
+/* =====================================================================
+   6. WAS PASSIERT, WENN EINE RUNDE FERTIG IST
+   ===================================================================== */
+
+function rundeFertig(key) {
+  const level = spiel[key].level;
+  const wert = STATIONEN[key].wert(level);
+
+  if (key === 'halle') {
+    // Halle hat Waren hergestellt -> warten auf den Lieferwagen
+    spiel.halle.vorrat += wert;
+  }
+  else if (key === 'wagen') {
+    // Wagen nimmt so viel mit, wie er tragen kann, und bringt es zum Verkauf
+    const menge = Math.min(wert, spiel.halle.vorrat);
+    spiel.halle.vorrat -= menge;
+    spiel.verkauf.vorrat += menge;
+  }
+  else if (key === 'verkauf') {
+    // Verkauf macht aus Waren Geld
+    const menge = Math.min(wert, spiel.verkauf.vorrat);
+    spiel.verkauf.vorrat -= menge;
+    spiel.geld += menge;
+    if (menge > 0) geldFliegt(teile.verkauf.karte, menge);
+  }
+}
+
+// Zeigt "+$15" über der Karte, das nach oben fliegt
+function geldFliegt(karte, menge) {
+  const rahmen = karte.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'flieg';
+  el.textContent = '+' + geldText(menge);
+  el.style.left = (rahmen.left + rahmen.width / 2) + 'px';
+  el.style.top = (rahmen.top + 10) + 'px';
+  document.body.appendChild(el);
+  el.addEventListener('animationend', () => el.remove());
+}
+
+
+/* =====================================================================
+   7. DIE SPIEL-SCHLEIFE
+   Läuft ungefähr 20-mal pro Sekunde. Bewegt die Balken weiter.
+   ===================================================================== */
+
+let letzteZeit = performance.now();
+
+function schleife() {
+  const jetzt = performance.now();
+  // Vergangene Zeit in Sekunden (höchstens 1 Sekunde, falls der Tab im Hintergrund war)
+  const dt = Math.min((jetzt - letzteZeit) / 1000, 1);
+  letzteZeit = jetzt;
+
+  for (const key of REIHENFOLGE) {
+    const station = spiel[key];
+    if (!station.laeuft) continue;
+
+    station.fortschritt += dt / STATIONEN[key].zeit;
+
+    if (station.fortschritt >= 1) {
+      // Runde fertig! (Ohne Manager hält die Station danach an.)
+      station.fortschritt = 0;
+      station.laeuft = false;
+      rundeFertig(key);
+    }
+  }
+
+  anzeigen();
+}
+
+
+/* =====================================================================
+   8. BILDSCHIRM AKTUALISIEREN
+   ===================================================================== */
+
+function anzeigen() {
+  document.getElementById('geld').textContent = geldText(spiel.geld);
+  document.getElementById('edelsteine').textContent = '💎 ' + zahl(spiel.edelsteine);
+
+  for (const key of REIHENFOLGE) {
+    const s = STATIONEN[key];
+    const station = spiel[key];
+    const t = teile[key];
+
+    t.level.textContent = 'Lvl ' + station.level;
+    t.info.textContent = s.wertName + ': ' + geldText(s.wert(station.level)) + ' · ' + s.zeit + 's';
+
+    // Vorrat anzeigen (nur Halle und Verkauf haben einen)
+    if (key === 'halle') t.vorrat.innerHTML = 'Fertig<b>' + geldText(station.vorrat) + '</b>';
+    if (key === 'verkauf') t.vorrat.innerHTML = 'Wartet<b>' + geldText(station.vorrat) + '</b>';
+
+    // Balken
+    t.balken.style.width = (Math.min(station.fortschritt, 1) * 100) + '%';
+
+    // Hinweis-Text
+    if (station.laeuft) t.hinweis.textContent = '⚡ Tippen = schneller!';
+    else if (hatArbeit(key)) t.hinweis.textContent = '👆 Tippen zum Starten';
+    else t.hinweis.textContent = key === 'wagen' ? '⏳ Keine Waren' : '⏳ Nichts zu verkaufen';
+
+    // Upgrade-Knopf
+    const preis = s.kosten(station.level);
+    t.knopf.textContent = '⬆ ' + geldText(preis);
+    t.knopf.classList.toggle('zu-teuer', spiel.geld < preis);
+  }
+}
+
+
+/* =====================================================================
+   9. START
+   ===================================================================== */
+
+kartenBauen();
+anzeigen();
+setInterval(schleife, 50);       // Spiel-Schleife
+setInterval(speichern, 5000);    // alle 5 Sekunden automatisch speichern
+
+// Auch speichern, wenn man die Seite schliesst oder wechselt
+window.addEventListener('beforeunload', speichern);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) speichern();
+});
+
+document.getElementById('speichern').addEventListener('click', () => {
+  speichern();
+  alert('Gespeichert! 💾');
+});
+
+document.getElementById('reset').addEventListener('click', () => {
+  if (confirm('Wirklich alles löschen und neu anfangen?')) {
+    spiel = neuesSpiel();
+    speichern();
+    anzeigen();
+  }
+});
+</script>
+</body>
+</html>
