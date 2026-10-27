@@ -5,6 +5,9 @@ import { inGrid, seededRandom, type PlacedBuilding } from '@empire/shared';
 import { feldSchluessel, feldZuWelt } from '../game/coords';
 import { wegFinden } from '../game/pathfinding';
 import { Figur, type Aussehen, type Bewegung } from './Figur';
+import { FIGUR_MASS } from './Spieler';
+
+const TEMPO = 1.1;
 
 const JACKEN = ['#e67e22', '#27ae60', '#8e44ad', '#16a085', '#d35400', '#2980b9', '#c0392b', '#7f8c8d'];
 const HAUT = ['#f1c27d', '#e0ac69', '#8d5524', '#c68642', '#ffdbac'];
@@ -33,7 +36,7 @@ function Einwohner({ nr, tuerListe, belegt }: { nr: number; tuerListe: Feld[]; b
     return { jacke: wahl(JACKEN), hose: wahl(['#34495e', '#5d4037', '#2c3e50', '#4e342e']), haut: wahl(HAUT), hut, hutFarbe: wahl(JACKEN), haar: hut === 'keiner' ? wahl(HAARE) : undefined };
   }, [nr]);
   const figur = useRef<Group>(null!);
-  const bewegung = useRef<Bewegung>({ laeuft: false, tempo: 1.7, schlagAt: -9 });
+  const bewegung = useRef<Bewegung>({ laeuft: false, tempo: TEMPO, schlagAt: -9 });
   const zustand = useRef({ weg: [] as Feld[], schritt: 0, warten: 1 + nr * 0.4, pos: null as null | { x: number; z: number }, feld: null as null | Feld });
   const daten = useRef({ tuerListe, belegt });
   daten.current.tuerListe = tuerListe; daten.current.belegt = belegt;
@@ -62,7 +65,7 @@ function Einwohner({ nr, tuerListe, belegt }: { nr: number; tuerListe: Feld[]; b
       const naechstes = z.weg[z.schritt];
       const [wx, , wz] = feldZuWelt(naechstes.x, naechstes.y);
       const dx = wx - z.pos.x, dz = wz - z.pos.z, d = Math.hypot(dx, dz);
-      const s = 1.7 * dt;
+      const s = TEMPO * dt;
       if (d <= s) { z.pos.x = wx; z.pos.z = wz; z.feld = naechstes; z.schritt++; }
       else {
         z.pos.x += (dx / d) * s; z.pos.z += (dz / d) * s;
@@ -74,7 +77,7 @@ function Einwohner({ nr, tuerListe, belegt }: { nr: number; tuerListe: Feld[]; b
     figur.current.position.set(z.pos.x, 0, z.pos.z);
   });
 
-  return <Figur ref={figur} aussehen={aussehen} bewegung={bewegung} />;
+  return <Figur ref={figur} aussehen={aussehen} bewegung={bewegung} skala={FIGUR_MASS * (0.92 + (nr % 3) * 0.05)} />;
 }
 
 // So viele Einwohner laufen herum, wie in der Stadt wohnen (höchstens 18 sichtbar)

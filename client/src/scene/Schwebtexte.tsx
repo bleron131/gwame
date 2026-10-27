@@ -12,11 +12,11 @@ function Text({ t }: { t: Schwebtext }) {
   useFrame((_, dt) => {
     alter.current += dt;
     const k = alter.current / 1.4;
-    sprite.current.position.set(t.pos[0], t.pos[1] + 2.4 + k * 1.6, t.pos[2]);
+    sprite.current.position.set(t.pos[0], t.pos[1] + 1.8 + k * 1.2, t.pos[2]);
     (sprite.current.material as SpriteMaterial).opacity = Math.max(0, 1 - k * k);
   });
   return (
-    <sprite ref={sprite} scale={[bild.verhaeltnis * 0.7, 0.7, 1]}>
+    <sprite ref={sprite} scale={[bild.verhaeltnis * 0.5, 0.5, 1]}>
       <spriteMaterial map={bild.tex} transparent depthTest={false} />
     </sprite>
   );

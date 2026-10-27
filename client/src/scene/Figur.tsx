@@ -33,7 +33,7 @@ function Teil({ g, p, c }: { g: [number, number, number]; p: [number, number, nu
 }
 
 // Eine Figur aus einfachen Formen: Beine und Arme schwingen beim Laufen
-export const Figur = forwardRef<Group, { aussehen: Aussehen; bewegung: MutableRefObject<Bewegung> }>(function Figur({ aussehen: a, bewegung }, ref) {
+export const Figur = forwardRef<Group, { aussehen: Aussehen; bewegung: MutableRefObject<Bewegung>; skala?: number }>(function Figur({ aussehen: a, bewegung, skala = 1 }, ref) {
   const koerper = useRef<Group>(null!);
   const beinL = useRef<Group>(null!), beinR = useRef<Group>(null!);
   const armL = useRef<Group>(null!), armR = useRef<Group>(null!);
@@ -61,7 +61,7 @@ export const Figur = forwardRef<Group, { aussehen: Aussehen; bewegung: MutableRe
   });
 
   return (
-    <group ref={ref}>
+    <group ref={ref} scale={skala}>
       <group ref={koerper}>
         {/* Beine */}
         <group ref={beinL} position={[-0.15, 0.86, 0]}>

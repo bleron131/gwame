@@ -4,49 +4,45 @@ import type { Group } from 'three';
 import type { MapNode } from '@empire/shared';
 import { feldZuWelt } from '../game/coords';
 import { jetztSek, trefferZeit } from '../game/effects';
+import { Teil } from './modelle';
 
-const KRONEN = ['#4c9a3c', '#5fb34a', '#3f8a3a', '#6aa84f'];
+// Bäume und Felsen aus dem Kenney Nature Kit
+const BAUM_ARTEN = ['natur/tree_default', 'natur/tree_oak', 'natur/tree_detailed', 'natur/tree_fat', 'natur/tree_pineRoundA', 'natur/tree_cone'];
+const FELS_ARTEN = ['natur/stone_tallA', 'natur/stone_largeB', 'natur/stone_tallC', 'natur/stone_largeD'];
+// Wo die einzelnen Bäume/Felsen auf dem Feld stehen (ein Feld = kleine Baumgruppe)
+const PLAETZE: [number, number][] = [[-0.35, -0.3], [0.4, -0.1], [-0.05, 0.4], [0.35, 0.45]];
 
 // Ein Baum oder Felsen, den der Bürgermeister abbauen kann.
-// Er wackelt, wenn man draufschlägt, und wird mit jedem Schlag kleiner.
+// Jeder Schlag nimmt einen Baum (oder Stein) aus der Gruppe weg.
 export function NaturObjekt({ node, nah, onTipp }: { node: MapNode; nah: boolean; onTipp: (id: number) => void }) {
   const gruppe = useRef<Group>(null!);
   const pos = feldZuWelt(node.x, node.y);
-  // etwas Abwechslung: jeder Baum steht leicht versetzt und ist anders gross
-  const vx = ((node.id * 37) % 7) / 10 - 0.3, vz = ((node.id * 53) % 7) / 10 - 0.3;
-  const groesse = (node.type === 'tree' ? 0.75 : 0.7) + node.hitsLeft * 0.1;
+  const baum = node.type === 'tree';
+  const arten = baum ? BAUM_ARTEN : FELS_ARTEN;
 
   useFrame(() => {
     const seit = jetztSek() - (trefferZeit.get(node.id) ?? -9);
-    const wackel = seit < 0.5 ? Math.sin(seit * 45) * 0.18 * (1 - seit / 0.5) : 0;
-    gruppe.current.rotation.z = wackel;
+    gruppe.current.rotation.z = seit < 0.5 ? Math.sin(seit * 45) * 0.12 * (1 - seit / 0.5) : 0;
   });
 
   const tipp = (e: ThreeEvent<MouseEvent>) => { if (e.delta > 10) return; e.stopPropagation(); onTipp(node.id); };
 
   return (
-    <group position={[pos[0] + vx, 0, pos[2] + vz]} onClick={tipp}>
-      <group ref={gruppe} scale={groesse}>
-        {node.type === 'tree' ? (
-          <>
-            <mesh position={[0, 0.6, 0]} castShadow><cylinderGeometry args={[0.13, 0.19, 1.2, 7]} /><meshStandardMaterial color="#7a5232" roughness={0.9} /></mesh>
-            <mesh position={[0, 1.55, 0]} rotation={[0, node.id, 0]} castShadow><icosahedronGeometry args={[0.8, 0]} /><meshStandardMaterial color={KRONEN[node.id % KRONEN.length]} roughness={0.85} flatShading /></mesh>
-            <mesh position={[0.15, 2.15, 0.05]} rotation={[0, node.id * 2, 0]} castShadow><icosahedronGeometry args={[0.52, 0]} /><meshStandardMaterial color={KRONEN[(node.id + 1) % KRONEN.length]} roughness={0.85} flatShading /></mesh>
-          </>
-        ) : (
-          <>
-            <mesh position={[0, 0.4, 0]} rotation={[0.4, node.id, 0.2]} scale={[1.1, 0.8, 1]} castShadow receiveShadow><dodecahedronGeometry args={[0.6, 0]} /><meshStandardMaterial color="#8d8f94" roughness={0.95} flatShading /></mesh>
-            <mesh position={[0.45, 0.22, 0.25]} rotation={[0, node.id * 3, 0.5]} castShadow><dodecahedronGeometry args={[0.3, 0]} /><meshStandardMaterial color="#7b7d83" roughness={0.95} flatShading /></mesh>
-          </>
-        )}
+    <group position={pos} onClick={tipp}>
+      <group ref={gruppe}>
+        {PLAETZE.slice(0, node.hitsLeft).map(([x, z], k) => (
+          <Teil key={k} m={arten[(node.id + k) % arten.length]} p={[x, 0, z]} r={node.id * 1.7 + k * 2.1} s={baum ? 1.6 + ((node.id + k) % 3) * 0.2 : 1.3 + (k % 2) * 0.3} />
+        ))}
       </group>
-      {/* Wenn du nah genug bist, leuchtet ein Ring um den Baum/Felsen */}
+      {/* Wenn du nah genug bist, leuchtet ein Ring */}
       {nah && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
-          <ringGeometry args={[0.75, 0.9, 32]} />
+          <ringGeometry args={[0.9, 1.02, 40]} />
           <meshBasicMaterial color="#ffffff" transparent opacity={0.85} />
         </mesh>
       )}
     </group>
   );
 }
+
+export const NATUR_MODELLE = [...BAUM_ARTEN, ...FELS_ARTEN];

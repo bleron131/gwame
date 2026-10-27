@@ -1,13 +1,17 @@
-import { memo, useMemo } from 'react';
+import { Suspense, memo, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { BUILDINGS, inGrid, type BuildingType, type GameState } from '@empire/shared';
 import { feldSchluessel, weltZuFeld } from '../game/coords';
 import { EinwohnerGruppe } from './Einwohner';
-import { Gebaeude, GebaeudeVorschau } from './Gebaeude';
-import { NaturObjekt } from './Natur';
+import { GEBAEUDE_MODELLE, Gebaeude, GebaeudeVorschau } from './Gebaeude';
+import { modelleVorladen } from './modelle';
+import { NATUR_MODELLE, NaturObjekt } from './Natur';
 import { Schwebtexte } from './Schwebtexte';
 import { Spieler } from './Spieler';
-import { Boden, FreieFelder, Landschaft, Licht } from './Umgebung';
+import { Boden, FreieFelder, LANDSCHAFT_MODELLE, Landschaft, Licht } from './Umgebung';
+
+// Alle 3D-Modelle schon beim Start laden
+modelleVorladen([...GEBAEUDE_MODELLE, ...NATUR_MODELLE, ...LANDSCHAFT_MODELLE]);
 
 interface Props {
   state: GameState;
@@ -36,7 +40,7 @@ export const Szene = memo(function Szene(p: Props) {
   const hindernisse = useMemo(() => {
     const m = new Map<string, number>();
     for (const b of state.buildings) m.set(feldSchluessel(b.x, b.y), 0.92);
-    for (const n of state.nodes) m.set(feldSchluessel(n.x, n.y), n.type === 'tree' ? 0.4 : 0.55);
+    for (const n of state.nodes) m.set(feldSchluessel(n.x, n.y), 0.7);
     return m;
   }, [state.buildings, state.nodes]);
 
@@ -46,11 +50,14 @@ export const Szene = memo(function Szene(p: Props) {
   };
 
   return (
-    <Canvas shadows dpr={[1, 2]} camera={{ fov: 45, near: 0.1, far: 400, position: [0, 18, 18] }} onPointerMissed={p.onDaneben}>
+    <Canvas shadows dpr={[1, 2]} camera={{ fov: 50, near: 0.05, far: 400, position: [0, 12, 12] }} onPointerMissed={p.onDaneben}>
       <color attach="background" args={['#9fd4f5']} />
       <fog attach="fog" args={['#cfe9fa', 55, 140]} />
       <Licht />
       <Boden onTipp={bodenTipp} />
+      <Spieler hindernisse={hindernisse} nodes={state.nodes} onNah={p.onNah} />
+      {/* Modelle werden geladen – bis dahin wird einfach nichts gezeigt */}
+      <Suspense fallback={null}>
       <Landschaft />
       {p.platzieren && <FreieFelder belegt={belegt} />}
       {state.buildings.map(b => <Gebaeude key={b.id} b={b} ausgewaehlt={b.id === p.ausgewaehlt} onTipp={p.onGebaeude} />)}
@@ -58,8 +65,8 @@ export const Szene = memo(function Szene(p: Props) {
       {p.platzieren && p.vorschau && (
         <GebaeudeVorschau x={p.vorschau.x} y={p.vorschau.y} ok={p.vorschauOk} symbol={`${BUILDINGS[p.platzieren].icon} ${BUILDINGS[p.platzieren].name}`} />
       )}
-      <Spieler hindernisse={hindernisse} nodes={state.nodes} onNah={p.onNah} />
       <EinwohnerGruppe gebaeude={state.buildings} belegt={belegt} bevoelkerung={state.stats.population} />
+      </Suspense>
       <Schwebtexte />
     </Canvas>
   );

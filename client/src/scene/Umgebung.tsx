@@ -4,6 +4,7 @@ import { CanvasTexture, Object3D, RepeatWrapping, SRGBColorSpace, type Direction
 import { GRID_SIZE, seededRandom } from '@empire/shared';
 import { STADT_HALB, TILE, feldSchluessel, feldZuWelt } from '../game/coords';
 import { spielerPos } from '../game/effects';
+import { Teil } from './modelle';
 
 // ===== Licht: Himmel + Sonne, die dem Bürgermeister folgt (für scharfe Schatten) =====
 export function Licht() {
@@ -98,32 +99,37 @@ export function FreieFelder({ belegt }: { belegt: Set<string> }) {
   );
 }
 
-// ===== Wald, Berge und Wolken rund um die Stadt (nur Deko) =====
+// ===== Wald, Blumen, Berge und Wolken rund um die Stadt (nur Deko) =====
+const WALD = ['natur/tree_pineRoundA', 'natur/tree_pineRoundC', 'natur/tree_pineTallA', 'natur/tree_default', 'natur/tree_oak',
+  'natur/tree_detailed', 'natur/tree_cone', 'natur/tree_fat', 'natur/tree_pineDefaultA'];
+const KLEIN = ['natur/grass_large', 'natur/grass', 'natur/flower_redA', 'natur/flower_yellowA', 'natur/flower_purpleA',
+  'natur/plant_bush', 'natur/plant_bushLarge', 'natur/mushroom_redGroup', 'natur/stump_old', 'natur/log'];
+export const LANDSCHAFT_MODELLE = [...WALD, ...KLEIN];
+
 export function Landschaft() {
-  const baeume = useMemo(() => {
+  const deko = useMemo(() => {
     const r = seededRandom(2024);
-    const l: { x: number; z: number; s: number; f: number }[] = [];
-    while (l.length < 130) {
+    const baeume: { m: string; x: number; z: number; s: number; rot: number }[] = [];
+    while (baeume.length < 150) {
       const x = (r() * 2 - 1) * 60, z = (r() * 2 - 1) * 55;
-      if (Math.abs(x) < STADT_HALB + 5 && Math.abs(z) < STADT_HALB + 5) continue;
-      l.push({ x, z, s: 0.9 + r() * 0.8, f: Math.floor(r() * 3) });
+      if (Math.abs(x) < STADT_HALB + 4 && Math.abs(z) < STADT_HALB + 4) continue;
+      baeume.push({ m: WALD[Math.floor(r() * WALD.length)], x, z, s: 2 + r() * 1.4, rot: r() * 6 });
     }
-    return l;
+    const klein: { m: string; x: number; z: number; s: number; rot: number }[] = [];
+    while (klein.length < 140) {
+      const x = (r() * 2 - 1) * 34, z = (r() * 2 - 1) * 34;
+      if (Math.abs(x) < STADT_HALB + 0.8 && Math.abs(z) < STADT_HALB + 0.8) continue;
+      klein.push({ m: KLEIN[Math.floor(r() * KLEIN.length)], x, z, s: 1.6 + r() * 0.8, rot: r() * 6 });
+    }
+    return [...baeume, ...klein];
   }, []);
   const wolken = useRef<Group>(null!);
   useFrame((_, dt) => {
     for (const w of wolken.current.children) { w.position.x += dt * 0.8; if (w.position.x > 70) w.position.x = -70; }
   });
-  const gruen = ['#4c9a3c', '#3f8a3a', '#5fb34a'];
   return (
     <group>
-      {baeume.map((b, k) => (
-        <group key={k} position={[b.x, 0, b.z]} scale={b.s}>
-          <mesh position={[0, 0.7, 0]} castShadow><cylinderGeometry args={[0.15, 0.22, 1.4, 6]} /><meshStandardMaterial color="#7a5232" /></mesh>
-          <mesh position={[0, 2.0, 0]} castShadow><coneGeometry args={[1.0, 2.2, 7]} /><meshStandardMaterial color={gruen[b.f]} flatShading /></mesh>
-          <mesh position={[0, 2.9, 0]} castShadow><coneGeometry args={[0.7, 1.6, 7]} /><meshStandardMaterial color={gruen[(b.f + 1) % 3]} flatShading /></mesh>
-        </group>
-      ))}
+      {deko.map((d, k) => <Teil key={k} m={d.m} p={[d.x, 0, d.z]} r={d.rot} s={d.s} />)}
       {[[-60, -90, 30, 22], [-20, -100, 38, 30], [25, -95, 32, 26], [65, -88, 28, 20]].map(([x, z, r, h], k) => (
         <group key={k} position={[x, 0, z]}>
           <mesh position={[0, h / 2, 0]}><coneGeometry args={[r, h, 7]} /><meshStandardMaterial color="#7d8a7a" flatShading /></mesh>
@@ -133,8 +139,8 @@ export function Landschaft() {
       <group ref={wolken}>
         {[[-40, 22, -30], [-5, 25, -45], [30, 21, -25], [55, 24, -50], [10, 23, 10]].map(([x, y, z], k) => (
           <group key={k} position={[x, y, z]}>
-            {[[0, 0, 0, 3], [2.6, -0.4, 0.5, 2.2], [-2.5, -0.5, -0.3, 2.3], [0.8, 0.9, 0, 2]].map(([a, b, c, s], j) => (
-              <mesh key={j} position={[a, b, c]} scale={s}><sphereGeometry args={[1, 10, 8]} /><meshStandardMaterial color="#ffffff" roughness={1} /></mesh>
+            {[[0, 0, 0, 3], [2.6, -0.4, 0.5, 2.2], [-2.5, -0.5, -0.3, 2.3], [0.8, 0.9, 0, 2]].map(([a, b, c, sc], j) => (
+              <mesh key={j} position={[a, b, c]} scale={sc}><sphereGeometry args={[1, 10, 8]} /><meshStandardMaterial color="#ffffff" roughness={1} /></mesh>
             ))}
           </group>
         ))}
