@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.log
+
+# Die Datenbank mit deinem Spielstand gehört nicht ins Repository
+server/data/
+*.db
+*.db-shm
+*.db-wal
+
+.DS_Store
+.vscode/

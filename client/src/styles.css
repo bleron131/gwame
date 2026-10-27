@@ -1,0 +1,163 @@
+/* ===== Farben an einer Stelle ===== */
+:root {
+  --gruen: #36d17f; --gruen-dunkel: #148a4a;
+  --gelb: #ffc93c; --rot: #ff5c5c; --blau: #3fa3ff;
+  --nacht: #16202e; --panel: #1c2433; --panel-hell: #283246; --linie: rgba(255, 255, 255, .09);
+  --text: #ffffff; --grau: #9ba5ba;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; height: 100%; overflow: hidden; }
+body {
+  background: var(--nacht); color: var(--text);
+  font-family: 'Fredoka', system-ui, -apple-system, sans-serif;
+  user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+button { font-family: inherit; color: inherit; border: none; cursor: pointer; }
+button:disabled { cursor: default; }
+
+.app, .welt { position: fixed; inset: 0; }
+.welt { touch-action: none; }
+
+/* ===== Obere Leiste ===== */
+.leiste {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 5; pointer-events: none;
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+  padding: calc(10px + env(safe-area-inset-top)) 10px 0;
+}
+.rohstoffe { display: flex; flex-wrap: wrap; gap: 6px; max-width: 75%; }
+.chip {
+  display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 5px;
+  background: rgba(12, 17, 27, .74); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border: 2px solid var(--linie); border-radius: 14px; box-shadow: 0 4px 12px rgba(0, 0, 0, .25);
+}
+.chip.voll { border-color: var(--rot); }
+.chip .icon { font-size: 20px; width: 28px; height: 28px; display: grid; place-items: center; background: rgba(255, 255, 255, .08); border-radius: 9px; }
+.chip .wert { display: flex; flex-direction: column; line-height: 1.05; }
+.chip b { font-size: 16px; }
+.chip small { font-size: 11px; color: var(--grau); }
+.chip em { font-style: normal; font-size: 10.5px; color: var(--gruen); }
+.chip.voll em { color: var(--rot); }
+.rechts { display: flex; gap: 6px; align-items: flex-start; pointer-events: auto; }
+.level { background: rgba(12, 17, 27, .74); border: 2px solid var(--linie); border-radius: 14px; padding: 4px 10px; text-align: right; }
+.stadtname { font-size: 12px; color: var(--grau); max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lvl { display: flex; align-items: center; gap: 6px; }
+.lvl b { font-size: 15px; color: var(--gelb); }
+.xp { width: 56px; height: 7px; background: rgba(255, 255, 255, .12); border-radius: 4px; overflow: hidden; }
+.xp i { display: block; height: 100%; background: var(--gelb); }
+.rund-klein { width: 42px; height: 42px; border-radius: 13px; font-size: 19px; background: rgba(12, 17, 27, .74); border: 2px solid var(--linie); }
+
+/* ===== Meldungen und Tipps ===== */
+.meldungen { position: fixed; top: calc(118px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 20;
+  display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; width: max-content; max-width: 92vw; }
+.meldung { background: rgba(12, 17, 27, .92); border: 2px solid var(--linie); border-radius: 14px; padding: 9px 14px; font-weight: 600; font-size: 14.5px;
+  text-align: center; animation: rein .25s ease-out; }
+.meldung.fehler { border-color: rgba(255, 92, 92, .6); }
+.meldung.erfolg { background: linear-gradient(#ffd45c, #ffb800); color: #3d2a00; border-color: transparent; }
+@keyframes rein { from { opacity: 0; transform: translateY(-8px); } }
+.tipp { position: fixed; left: 50%; bottom: calc(104px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 4;
+  background: #fff; color: #1c2433; font-weight: 600; font-size: 14px; padding: 9px 14px; border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .3); width: max-content; max-width: min(92vw, 420px); text-align: center; pointer-events: none; }
+
+/* ===== Untere Knöpfe ===== */
+.unten { position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 5; display: flex; gap: 10px; }
+.rund { width: 70px; height: 70px; border-radius: 22px; color: #1c2433; background: linear-gradient(#ffffff, #dce3f0);
+  box-shadow: 0 5px 0 #8f9ab3, 0 8px 18px rgba(0, 0, 0, .35); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.rund span { font-size: 28px; line-height: 1; }
+.rund small { font-size: 11px; font-weight: 700; }
+.rund:active { transform: translateY(3px); box-shadow: 0 2px 0 #8f9ab3; }
+.rund.bald { opacity: .5; }
+
+/* Abbau-Knopf */
+.aktion { position: fixed; right: 16px; bottom: calc(110px + env(safe-area-inset-bottom)); z-index: 5;
+  width: 86px; height: 86px; border-radius: 50%; background: linear-gradient(#ffd45c, #ffb000); color: #3d2a00;
+  box-shadow: 0 5px 0 #b87a00, 0 10px 20px rgba(0, 0, 0, .35); display: flex; flex-direction: column; align-items: center; justify-content: center;
+  animation: pulsieren 1.2s ease-in-out infinite; }
+.aktion span { font-size: 32px; line-height: 1; }
+.aktion small { font-size: 13px; font-weight: 700; }
+.aktion i { font-style: normal; font-size: 9px; letter-spacing: 2px; }
+.aktion:active { transform: translateY(3px) scale(.96); box-shadow: 0 2px 0 #b87a00; animation: none; }
+@keyframes pulsieren { 50% { transform: scale(1.06); } }
+
+/* Bau-Leiste */
+.bauleiste { position: fixed; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 6;
+  width: min(94vw, 480px); display: flex; align-items: center; gap: 8px; padding: 10px; background: var(--panel); border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .4); }
+.bauleiste-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bauleiste-text span { color: var(--grau); font-size: 13px; }
+
+/* ===== Knöpfe ===== */
+.knopf { background: linear-gradient(#4ee59a, #23b968); color: #05351b; font-weight: 700; font-size: 15px; border-radius: 14px;
+  padding: 10px 14px; box-shadow: 0 4px 0 var(--gruen-dunkel); flex-shrink: 0; }
+.knopf:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 2px 0 var(--gruen-dunkel); }
+.knopf.aus { background: linear-gradient(#5d667d, #474f64); color: #c3cad8; box-shadow: 0 4px 0 #33394a; }
+.knopf.leise { background: var(--panel-hell); color: #fff; box-shadow: none; }
+.knopf.rot { background: linear-gradient(#ff7b7b, #e04848); color: #fff; box-shadow: 0 4px 0 #a52e2e; }
+.knopf.gross { width: 100%; font-size: 17px; padding: 13px; margin-top: 10px; }
+
+/* ===== Menü von unten ===== */
+.blatt { position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); z-index: 10; width: min(100%, 560px); max-height: min(74vh, 680px);
+  background: var(--panel); border-radius: 24px 24px 0 0; box-shadow: 0 -10px 30px rgba(0, 0, 0, .45);
+  display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); animation: hochfahren .28s cubic-bezier(.2, .9, .3, 1.1); }
+@keyframes hochfahren { from { transform: translate(-50%, 100%); } }
+.griff { width: 44px; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, .2); margin: 8px auto 0; flex-shrink: 0; }
+.blatt .zu { position: absolute; right: 12px; top: 10px; width: 38px; height: 38px; border-radius: 12px; background: var(--panel-hell); font-size: 16px; }
+.blatt-kopf { display: flex; align-items: center; gap: 12px; padding: 6px 60px 10px 16px; }
+.blatt-icon { width: 54px; height: 54px; border-radius: 16px; display: grid; place-items: center; font-size: 30px; background: var(--panel-hell); flex-shrink: 0; }
+.blatt-kopf h2 { margin: 0; font-size: 21px; }
+.blatt-kopf p { margin: 2px 0 0; color: var(--grau); font-size: 13px; }
+.blatt-inhalt { overflow-y: auto; padding: 0 16px 18px; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+.beschreibung { color: var(--grau); margin: 0 0 10px; font-size: 14px; }
+.karte { display: flex; align-items: center; gap: 10px; background: var(--panel-hell); border-radius: 16px; padding: 10px; margin-bottom: 8px; }
+.karte.gesperrt { opacity: .55; }
+.karte-icon { width: 48px; height: 48px; border-radius: 13px; background: rgba(255, 255, 255, .07); display: grid; place-items: center; font-size: 26px; flex-shrink: 0; }
+.karte-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.karte-text b { font-size: 16px; }
+.karte-text span { color: var(--grau); font-size: 12.5px; }
+.karte-text .wirkung { color: var(--gruen); }
+.kosten { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.kosten .k { background: rgba(255, 255, 255, .08); border-radius: 8px; padding: 1px 7px; font-size: 12.5px; color: #fff; }
+.kosten .k.fehlt { background: rgba(255, 92, 92, .2); color: #ffb3b3; }
+.kosten.gratis { color: var(--gruen); font-size: 12.5px; }
+.kosten-zeile { display: flex; align-items: center; gap: 8px; color: var(--grau); font-size: 13px; }
+.werte { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+.werte div { background: var(--panel-hell); border-radius: 14px; padding: 8px 10px; }
+.werte small { display: block; color: var(--grau); font-size: 12px; }
+.werte b { font-size: 14.5px; }
+.werte .gruen { color: var(--gruen); }
+
+/* ===== Fenster in der Mitte ===== */
+.fenster-hinter { position: fixed; inset: 0; z-index: 30; background: rgba(5, 8, 14, .65); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.fenster { background: var(--panel); border-radius: 24px; padding: 22px 20px 18px; width: min(100%, 380px); text-align: center; box-shadow: 0 20px 50px rgba(0, 0, 0, .5); animation: aufpoppen .3s cubic-bezier(.2, .9, .3, 1.3); }
+@keyframes aufpoppen { from { transform: scale(.8); opacity: 0; } }
+.fenster h2 { margin: 6px 0; }
+.fenster p { color: var(--grau); }
+.gross-emoji { font-size: 54px; }
+.betrag { font-size: 24px; font-weight: 700; color: var(--gruen); margin: 6px 0 4px; }
+
+/* ===== Start- und Ladebildschirm ===== */
+.startbild { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 24px; text-align: center;
+  background: radial-gradient(ellipse at 50% 25%, #3a6ea5 0%, transparent 60%), linear-gradient(#1d3a5c, #16202e); }
+.startbild .logo { font-size: 86px; filter: drop-shadow(0 8px 16px rgba(0, 0, 0, .4)); animation: wippen 2s ease-in-out infinite; }
+@keyframes wippen { 50% { transform: translateY(-8px) rotate(-3deg); } }
+.startbild h1 { font-size: 46px; line-height: 1; margin: 6px 0; text-shadow: 0 4px 0 #0f2a48, 0 8px 20px rgba(0, 0, 0, .4); }
+.startbild h1 span { color: var(--gelb); }
+.startbild p { color: #cfd6e4; max-width: 340px; margin: 4px 0 16px; line-height: 1.4; }
+.startbild form { width: min(100%, 340px); display: flex; flex-direction: column; }
+.startbild input { font-family: inherit; font-size: 18px; padding: 14px; border-radius: 14px; border: 2px solid var(--linie); background: rgba(0, 0, 0, .25); color: #fff; text-align: center; outline: none; }
+.startbild input:focus { border-color: var(--gelb); }
+
+/* ===== Joystick ===== */
+.joystick { position: fixed; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; z-index: 4; pointer-events: none;
+  background: rgba(255, 255, 255, .12); border: 3px solid rgba(255, 255, 255, .35); }
+.knauf { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px; border-radius: 50%;
+  background: rgba(255, 255, 255, .85); box-shadow: 0 4px 10px rgba(0, 0, 0, .3); }
+
+@media (max-width: 480px) {
+  .chip { padding: 3px 8px 3px 4px; }
+  .chip .icon { width: 24px; height: 24px; font-size: 17px; }
+  .chip b { font-size: 14px; }
+  .stadtname { display: none; }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "@empire/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Spielregeln, die Server und Browser gemeinsam benutzen",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts"
+}
