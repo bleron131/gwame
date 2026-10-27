@@ -1,5 +1,11 @@
 # 🏰 Empire Builder
 
+## ▶️ [Jetzt spielen: bleron131.github.io/gwame](https://bleron131.github.io/gwame/)
+
+*(läuft direkt im Browser, auch auf dem Handy – nichts installieren)*
+
+---
+
 Ein 3D-Aufbauspiel im Browser: Du bist der Bürgermeister, läufst durch deine Stadt,
 fällst Bäume, baust Häuser und machst aus einem kleinen Dorf ein Imperium.
 Der Spielstand liegt in einer SQLite-Datenbank auf dem Server – er bleibt also erhalten,
