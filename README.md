@@ -25,6 +25,17 @@ Weitere Befehle:
 | `npm run typecheck` | Sucht Tippfehler im TypeScript-Code |
 | `npm run build` | Baut die fertige Webseite in `client/dist` |
 
+## Online spielen (GitHub Pages)
+
+**https://bleron131.github.io/gwame/**
+
+Die Online-Version braucht keinen Server: Die SQLite-Datenbank läuft mit *sql.js* direkt im Browser,
+mit genau denselben Spielregeln (`server/src/services`). Der Spielstand wird im Browser gespeichert
+(IndexedDB) – jedes Gerät hat also seine eigene Stadt.
+
+Bei jedem Update auf `main` baut GitHub die Seite automatisch neu (`.github/workflows/pages.yml`).
+Selbst bauen: `npm run build:pages` → fertige Seite in `client/dist`.
+
 ## Steuerung
 
 - **Kamera wechseln:** Knopf oben rechts – 🗺️ Von oben → 🧍 Third Person → 👁️ Ego-Perspektive

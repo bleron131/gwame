@@ -34,7 +34,8 @@ function farbMaterial(farbe: string, original: Material): Material {
 
 export type Farben = Record<string, string>; // z. B. { roof: '#4f6d7a' } = dieses Haus bekommt ein blaues Dach
 
-const url = (name: string) => `/modelle/${name}.glb`;
+// BASE_URL ist auf GitHub Pages "/gwame/", sonst "/"
+const url = (name: string) => `${import.meta.env.BASE_URL}modelle/${name}.glb`;
 
 // Lädt ein Modell (nur einmal pro Datei) und gibt eine eigene Kopie zurück
 export function useModell(name: string, farben?: Farben): Object3D {

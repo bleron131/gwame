@@ -1,10 +1,12 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import initSqlJs, { type SqlJsStatic } from 'sql.js';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { GRID_SIZE, OFFLINE_LIMIT_SECONDS, START_RESOURCES, upgradeCost, type GameState } from '@empire/shared';
 import { createApp } from '../src/app';
-import { openDb, type DB } from '../src/db/db';
+import { SCHEMA, openDb, type DB } from '../src/db/db';
+import { sqljsDb } from '../src/db/sqljsDb';
 import { runAction } from '../src/services/actionRunner';
 import { build, pay, upgrade } from '../src/services/buildingService';
 import { GameError } from '../src/services/errors';
@@ -26,15 +28,29 @@ function freiesFeld(state: GameState, ausser: { x: number; y: number }[] = []) {
   throw new Error('kein freies Feld');
 }
 
+// sql.js = SQLite im Browser (für die GitHub-Pages-Version)
+let SQL: SqlJsStatic;
+beforeAll(async () => { SQL = await initSqlJs(); });
+function sqljsNeu(): DB {
+  const roh = new SQL.Database();
+  roh.exec('PRAGMA foreign_keys = ON');
+  roh.exec(SCHEMA);
+  return sqljsDb(roh);
+}
+
+// Alle Regel-Tests laufen zweimal: mit dem Server (better-sqlite3) und mit dem Browser (sql.js)
+describe.each([
+  ['Server (better-sqlite3)', () => openDb(':memory:')],
+  ['Browser (sql.js)', sqljsNeu]
+] as const)('Empire Builder – %s', (art, neueDb) => {
 beforeEach(() => {
   jetzt = 1_700_000_000_000;
-  db = openDb(':memory:');
+  db = neueDb();
   saveId = createSave(db, 'Teststadt', jetzt);
 });
 afterEach(() => db.close());
 
-describe('Empire Builder – Server', () => {
-  it('Spiel neu laden: Gebäude und Ressourcen bleiben erhalten', () => {
+  it.skipIf(art.startsWith('Browser'))('Spiel neu laden: Gebäude und Ressourcen bleiben erhalten', () => {
     const ordner = mkdtempSync(join(tmpdir(), 'empire-'));
     const datei = join(ordner, 'test.db');
     let d = openDb(datei);
@@ -143,6 +159,25 @@ describe('Empire Builder – Server', () => {
     const felsen = state.nodes.find(n => n.type === 'rock')!;
     runAction(db, saveId, undefined, jetzt + 1000, () => harvest(db, saveId, felsen.id, jetzt + 1000));
     expect(() => runAction(db, saveId, undefined, jetzt + 1100, () => harvest(db, saveId, felsen.id, jetzt + 1100))).toThrowError(/schnell/);
+  });
+});
+
+describe('Empire Builder – Browser-Speicher', () => {
+  it('Spielstand bleibt nach dem Neuladen der Seite erhalten (sql.js export/import)', () => {
+    const roh = new SQL.Database();
+    roh.exec('PRAGMA foreign_keys = ON'); roh.exec(SCHEMA);
+    let d = sqljsDb(roh);
+    const id = createSave(d, 'Browserstadt', jetzt);
+    const feld = freiesFeld(loadState(d, id, jetzt));
+    runAction(d, id, undefined, jetzt, () => build(d, id, 'house', feld.x, feld.y));
+    const vorher = loadState(d, id, jetzt);
+    const bytes = roh.export();     // so speichert der Browser die Datenbank
+    d.close();
+    const neu = new SQL.Database(bytes); // "Seite neu geladen"
+    neu.exec('PRAGMA foreign_keys = ON'); neu.exec(SCHEMA);
+    d = sqljsDb(neu);
+    expect(loadState(d, id, jetzt)).toEqual(vorher);
+    d.close();
   });
 });
 

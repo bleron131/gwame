@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 export type DB = Database.Database;
 
-const SCHEMA = readFileSync(fileURLToPath(new URL('./schema.sql', import.meta.url)), 'utf8');
+export const SCHEMA = readFileSync(fileURLToPath(new URL('./schema.sql', import.meta.url)), 'utf8');
 const STANDARD_DATEI = fileURLToPath(new URL('../../data/empire.db', import.meta.url));
 
 // Öffnet die Datenbank-Datei (oder ":memory:" für Tests) und legt fehlende Tabellen an.

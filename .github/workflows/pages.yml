@@ -1,0 +1,45 @@
+# Baut das Spiel bei jedem Update auf "main" und stellt es auf GitHub Pages.
+# Einmalig nötig: auf GitHub unter Settings → Pages → "Source" auf "GitHub Actions" stellen.
+name: Auf GitHub Pages veröffentlichen
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # auch per Knopf unter "Actions" startbar
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  bauen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test            # erst prüfen, ob die Spielregeln stimmen
+      - run: npm run build:pages # dann die Seite bauen (Datenbank läuft im Browser)
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: client/dist
+
+  veroeffentlichen:
+    needs: bauen
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
