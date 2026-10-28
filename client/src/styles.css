@@ -360,3 +360,13 @@ button:disabled { cursor: default; }
   .meldungen { top: calc(150px + env(safe-area-inset-top)); }
   .innen-titel { top: calc(150px + env(safe-area-inset-top)); }
 }
+
+/* ===== Maus fangen ===== */
+.fadenkreuz { position: fixed; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; z-index: 6; pointer-events: none;
+  background: linear-gradient(#fff, #fff) center / 2px 100% no-repeat, linear-gradient(#fff, #fff) center / 100% 2px no-repeat; opacity: .8;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, .8)); }
+.maus-hinweis { position: fixed; left: 50%; top: calc(70px + env(safe-area-inset-top)); transform: translateX(-50%); z-index: 6; pointer-events: none;
+  background: rgba(12, 17, 27, .8); border-radius: 12px; padding: 6px 12px; font-size: 13px; }
+.kamera-tipp { position: fixed; right: 10px; top: calc(62px + env(safe-area-inset-top)); z-index: 6; pointer-events: none; max-width: 280px;
+  background: rgba(12, 17, 27, .9); border: 2px solid var(--gelb); border-radius: 14px; padding: 8px 12px; font-size: 13px; line-height: 1.45; animation: rein .25s ease-out; }
+@media (max-width: 480px) { .kamera-tipp { top: calc(150px + env(safe-area-inset-top)); } }

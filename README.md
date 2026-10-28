@@ -45,8 +45,11 @@ Selbst bauen: `npm run build:pages` → fertige Seite in `client/dist`.
 ## Steuerung
 
 - **Kamera wechseln:** Knopf oben rechts – 🗺️ Von oben → 🧍 Third Person → 👁️ Ego-Perspektive
-- **Laufen von oben:** Finger (oder Maus) auf die Welt legen und ziehen – oder **W A S D** / Pfeiltasten
-- **Laufen in Third Person / Ego:** hoch = vorwärts, runter = rückwärts, links/rechts = drehen (W/S und A/D)
+- **Laufen von oben:** Finger (oder Maus) auf die Welt legen und ziehen – oder **W A S D** / Pfeiltasten.
+  **Rechte Maustaste ziehen** = Kamera um den Bürgermeister drehen und steiler/flacher schauen
+- **Third Person / Ego:** **W/S** = vor/zurück in Blickrichtung, **A/D** = seitwärts, Pfeiltasten links/rechts = drehen.
+  **Maus ziehen** = umsehen. **Doppelklick** = Maus fangen (umsehen ohne Klicken, wie im PC-Spiel), **Esc** = loslassen
+- **Handy in Third Person / Ego:** linke Bildschirmhälfte = laufen, rechte Hälfte ziehen = umsehen
 - **Zoomen:** Mausrad oder zwei Finger
 - **Baum fällen / Felsen abbauen:** hingehen und auf den gelben Knopf tippen (oder **E**)
 - **Bauen:** 🏗️ Bauen → Gebäude wählen → auf einen freien Platz tippen → ✓ Bauen

@@ -7,13 +7,16 @@ import { tageszeit, uhrText } from '../game/tageszeit';
 // Obere Leiste: Rohstoffe, Einwohner, Level
 export function Leiste({ state, vorrat, jetzt, onEinstellungen }: { state: GameState; vorrat: Stock; jetzt: number; onEinstellungen: () => void }) {
   const [modus, setModus] = useState(kamera.modus);
+  const [tipp, setTipp] = useState(0); // wann der Steuerungs-Tipp gezeigt wurde
   const aktuell = KAMERA_MODI.find(m => m.id === modus)!;
-  // Kamera-Knopf: wechselt zwischen Von oben -> Third Person -> Ego
+  // Kamera-Knopf: wechselt zwischen Von oben -> Third Person -> Ego (und zeigt kurz, wie man steuert)
   const wechseln = () => {
     const naechster = KAMERA_MODI[(KAMERA_MODI.indexOf(aktuell) + 1) % KAMERA_MODI.length];
     kameraModusSetzen(naechster.id);
     setModus(naechster.id);
+    setTipp(Date.now());
   };
+  const handy = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
   const { level, experience } = state.save;
   const von = xpForLevel(level), bis = xpForLevel(level + 1);
   const fortschritt = Math.min(100, ((experience - von) / (bis - von)) * 100);
@@ -52,6 +55,15 @@ export function Leiste({ state, vorrat, jetzt, onEinstellungen }: { state: GameS
         <button className="rund-klein" onClick={wechseln} aria-label={'Kamera: ' + aktuell.name} title={'Kamera: ' + aktuell.name}>{aktuell.icon}</button>
         <button className="rund-klein" onClick={onEinstellungen} aria-label="Einstellungen">⚙️</button>
       </div>
+      {Date.now() - tipp < 6000 && (
+        <div className="kamera-tipp">
+          <b>{aktuell.icon} {aktuell.name}</b><br />
+          {modus === 'oben'
+            ? (handy ? '☝️ Ziehen = laufen · ✌️ zwei Finger = zoomen' : '⌨️ WASD = laufen · 🖱️ rechte Maustaste ziehen = Kamera drehen · Mausrad = zoomen')
+            : (handy ? '👈 Linke Hälfte = laufen · 👉 rechte Hälfte ziehen = umsehen'
+              : '⌨️ W/S = vor/zurück · A/D = seitwärts · 🖱️ Maus ziehen = umsehen · Doppelklick = Maus fangen (Esc = loslassen)')}
+        </div>
+      )}
     </div>
   );
 }
