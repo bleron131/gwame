@@ -1,11 +1,11 @@
 import {
   BUILDINGS, DEMOLISH_REFUND, RESOURCE_IDS, XP,
-  amountsText, cityStats, inGrid, isBuildingType, missing, upgradeCost,
+  amountsText, inGrid, isBuildingType, missing, upgradeCost,
   type Amounts, type GameEvents
 } from '@empire/shared';
 import type { DB } from '../db/db';
 import { GameError } from './errors';
-import { addXp, readBuildings, readSave, readStock, writeStock } from './saveService';
+import { addXp, gutschreiben, readBuildings, readSave, readStock, writeStock } from './saveService';
 
 // Kosten abziehen – oder mit einer klaren Meldung abbrechen
 export function pay(db: DB, saveId: number, cost: Amounts): void {
@@ -40,7 +40,7 @@ export function build(db: DB, saveId: number, type: unknown, x: unknown, y: unkn
   if (!tileFree(db, saveId, px, py)) throw new GameError('TILE_TAKEN', 'Dieser Platz ist schon belegt.');
   pay(db, saveId, upgradeCost(type, 0));
   db.prepare('INSERT INTO buildings (save_id, building_type, x, y, level) VALUES (?, ?, ?, ?, 1)').run(saveId, type, px, py);
-  return addXp(db, saveId, XP.build);
+  return addXp(db, saveId, def.xp ?? XP.build);
 }
 
 export function upgrade(db: DB, saveId: number, buildingId: unknown): GameEvents {
@@ -58,17 +58,7 @@ export function demolish(db: DB, saveId: number, buildingId: unknown): GameEvent
   db.prepare('DELETE FROM buildings WHERE id = ?').run(b.id);
   // Die Hälfte der Baukosten zurück – aber nur so viel, wie ins Lager passt
   const cost = upgradeCost(b.type, 0);
-  const stock = readStock(db, saveId);
-  const cap = cityStats(readBuildings(db, saveId)).capacity;
-  const gained: Amounts = {};
-  for (const r of RESOURCE_IDS) {
-    const zurueck = Math.floor((cost[r] ?? 0) * DEMOLISH_REFUND);
-    if (!zurueck) continue;
-    const grenze = cap[r];
-    const neu = grenze === null ? stock[r] + zurueck : Math.max(stock[r], Math.min(grenze, stock[r] + zurueck));
-    if (neu > stock[r]) gained[r] = Math.floor(neu - stock[r]);
-    stock[r] = neu;
-  }
-  writeStock(db, saveId, stock);
-  return { gained };
+  const zurueck: Amounts = {};
+  for (const r of RESOURCE_IDS) zurueck[r] = Math.floor((cost[r] ?? 0) * DEMOLISH_REFUND);
+  return { gained: gutschreiben(db, saveId, zurueck) };
 }

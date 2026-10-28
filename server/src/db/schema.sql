@@ -1,5 +1,7 @@
 -- Die Datenbank speichert nur den Fortschritt des Spielers.
 -- Die Spielwerte (Kosten, Produktion …) stehen im Code: shared/src/buildings.ts
+-- Neue Spalten für bestehende Tabellen kommen NICHT hierher, sondern in db/migrationen.ts
+-- (sonst würden alte Spielstände sie nie bekommen).
 
 -- Ein Spielstand = eine Stadt
 CREATE TABLE IF NOT EXISTS game_saves (
@@ -47,7 +49,7 @@ CREATE TABLE IF NOT EXISTS nodes (
     UNIQUE (save_id, x, y)
 );
 
--- Forschung (kommt in Phase 6)
+-- Fertige Forschungen (die laufende steht in game_saves.research_active)
 CREATE TABLE IF NOT EXISTS research (
     save_id INTEGER NOT NULL,
     research_id TEXT NOT NULL,
@@ -56,7 +58,7 @@ CREATE TABLE IF NOT EXISTS research (
     FOREIGN KEY (save_id) REFERENCES game_saves(id) ON DELETE CASCADE
 );
 
--- Aufgaben (kommen in Phase 6)
+-- Aufgaben von Greta: erledigte (completed = 1) und die aktive mit ihrem Zähler (progress)
 CREATE TABLE IF NOT EXISTS quests (
     save_id INTEGER NOT NULL,
     quest_id TEXT NOT NULL,

@@ -28,10 +28,17 @@ export function mengenText(a: Amounts): string {
 export function wirkung(type: BuildingType, level: number): string[] {
   const def = BUILDINGS[type];
   const t: string[] = [];
+  if (type === 'road') t.push('🛣️ +50 % für Nachbar-Gebäude');
   if ('production' in def && def.production) {
     for (const r of RESOURCE_IDS) {
       const v = (def.production as Amounts)[r];
       if (v) t.push(`+${zahl(v * level)} ${RESOURCES[r].icon}/Min.`);
+    }
+  }
+  if (def.consumes) {
+    for (const r of RESOURCE_IDS) {
+      const v = def.consumes[r];
+      if (v) t.push(`−${zahl(v * level)} ${RESOURCES[r].icon}/Min.`);
     }
   }
   if ('population' in def && def.population) t.push(`+${def.population * level} 👥 Einwohner`);

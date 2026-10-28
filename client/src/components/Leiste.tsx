@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { RESOURCES, RESOURCE_IDS, xpForLevel, type GameState, type Stock } from '@empire/shared';
+import { BUILDINGS, RESOURCES, RESOURCE_IDS, xpForLevel, type GameState, type ResourceId, type Stock } from '@empire/shared';
 import { KAMERA_MODI, kamera, kameraModusSetzen } from '../game/input';
 import { zahl } from '../game/format';
 
@@ -16,10 +16,13 @@ export function Leiste({ state, vorrat, onEinstellungen }: { state: GameState; v
   const { level, experience } = state.save;
   const von = xpForLevel(level), bis = xpForLevel(level + 1);
   const fortschritt = Math.min(100, ((experience - von) / (bis - von)) * 100);
+  // Nur Rohstoffe zeigen, die man schon hat oder herstellt – sonst wird die Leiste zu voll
+  const stellHer = new Set(state.buildings.flatMap(b => Object.keys(BUILDINGS[b.type].production ?? {})));
+  const sichtbar = RESOURCE_IDS.filter((r: ResourceId) => r === 'gold' || r === 'wood' || r === 'stone' || vorrat[r] >= 1 || stellHer.has(r));
   return (
     <div className="leiste">
       <div className="rohstoffe">
-        {RESOURCE_IDS.map(r => {
+        {sichtbar.map(r => {
           const cap = state.stats.capacity[r];
           const voll = cap !== null && vorrat[r] >= cap;
           return (
@@ -27,7 +30,9 @@ export function Leiste({ state, vorrat, onEinstellungen }: { state: GameState; v
               <span className="icon">{RESOURCES[r].icon}</span>
               <span className="wert">
                 <b>{zahl(vorrat[r])}</b>{cap !== null && <small>/{zahl(cap)}</small>}
-                <em>+{zahl(state.stats.ratesPerMinute[r])}/Min.</em>
+                <em className={state.stats.ratesPerMinute[r] < 0 ? 'minus' : ''}>
+                  {state.stats.ratesPerMinute[r] < 0 ? '−' : '+'}{zahl(Math.abs(state.stats.ratesPerMinute[r]))}/Min.
+                </em>
               </span>
             </div>
           );

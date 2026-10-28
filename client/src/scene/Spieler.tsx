@@ -9,13 +9,15 @@ import { BUERGERMEISTER, Figur, type Bewegung } from './Figur';
 
 export const FIGUR_MASS = 0.42; // die Figuren sind kleiner als die Häuser (Türhöhe!)
 const RADIUS = 0.25;     // so "dick" ist der Bürgermeister
-const TEMPO = 3.4;       // Lauftempo
+const TEMPO_NORMAL = 3.4; // Lauftempo
+const STRASSEN_TEMPO = 1.35; // auf der Strasse geht es schneller
 const DREHEN = 2.6;      // so schnell dreht er sich in Third Person / Ego (pro Sekunde)
 const NAH = 1.8;         // so nah muss man an einem Baum stehen
 const AUGEN = 0.82;      // Augenhöhe für die Ego-Perspektive
 
 interface Props {
   hindernisse: Map<string, number>; // Feld -> halbe Breite des Hindernisses
+  strassen: Set<string>;            // Felder mit Strasse
   nodes: MapNode[];
   onNah: (nodeId: number | null) => void;
 }
@@ -38,11 +40,11 @@ function kollision(p: { x: number; z: number }, hindernisse: Map<string, number>
   p.z = Math.max(-grenze, Math.min(grenze, p.z));
 }
 
-export function Spieler({ hindernisse, nodes, onNah }: Props) {
+export function Spieler({ hindernisse, strassen, nodes, onNah }: Props) {
   const figur = useRef<Group>(null!);
   const bewegung = useRef<Bewegung>({ laeuft: false, tempo: 0, schlagAt: 0, werkzeug: true });
-  const daten = useRef({ hindernisse, nodes, onNah, nah: null as number | null, blick: 0 });
-  daten.current.hindernisse = hindernisse; daten.current.nodes = nodes; daten.current.onNah = onNah;
+  const daten = useRef({ hindernisse, strassen, nodes, onNah, nah: null as number | null, blick: 0 });
+  daten.current.hindernisse = hindernisse; daten.current.strassen = strassen; daten.current.nodes = nodes; daten.current.onNah = onNah;
   const { camera, size } = useThree();
   const kamZiel = useRef(new Vector3());
   const blickZiel = useRef(new Vector3());
@@ -56,19 +58,21 @@ export function Spieler({ hindernisse, nodes, onNah }: Props) {
     const g = figur.current;
     const modus = kamera.modus;
     let laeuft = false, tempo = 0;
+    const feld = weltZuFeld(p.x, p.z);
+    const lauf = TEMPO_NORMAL * (d.strassen.has(feldSchluessel(feld.x, feld.y)) ? STRASSEN_TEMPO : 1);
 
     if (modus === 'oben') {
       // Von oben: Joystick-Richtung = Laufrichtung auf dem Bildschirm
       const r = laufRichtung();
-      p.x += r.x * TEMPO * r.staerke * dt;
-      p.z += r.z * TEMPO * r.staerke * dt;
+      p.x += r.x * lauf * r.staerke * dt;
+      p.z += r.z * lauf * r.staerke * dt;
       if (r.staerke > 0.05) d.blick = Math.atan2(r.x, r.z);
-      laeuft = r.staerke > 0.05; tempo = TEMPO * r.staerke;
+      laeuft = r.staerke > 0.05; tempo = lauf * r.staerke;
     } else {
       // Third Person / Ego: hoch = vorwärts, links/rechts = drehen (wie ein Auto)
       const e = steuerEingabe();
       d.blick -= e.x * DREHEN * dt;
-      const vor = -e.z * TEMPO;
+      const vor = -e.z * lauf;
       p.x += Math.sin(d.blick) * vor * dt;
       p.z += Math.cos(d.blick) * vor * dt;
       laeuft = Math.abs(e.z) > 0.05 || Math.abs(e.x) > 0.05; tempo = Math.abs(vor) || 1.5;

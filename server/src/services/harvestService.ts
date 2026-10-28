@@ -1,7 +1,7 @@
-import { HARVEST_COOLDOWN_MS, NODES, RESOURCES, RESOURCE_IDS, XP, cityStats, type Amounts, type GameEvents } from '@empire/shared';
+import { HARVEST_COOLDOWN_MS, NODES, RESEARCH, RESOURCES, RESOURCE_IDS, XP, type Amounts, type GameEvents } from '@empire/shared';
 import type { DB } from '../db/db';
 import { GameError } from './errors';
-import { addXp, readBuildings, readNodes, readSave, readStock, writeStock } from './saveService';
+import { addXp, aufgabeZaehlen, readNodes, readResearch, readSave, readStock, stadtWerte, writeStock } from './saveService';
 
 // Der Bürgermeister schlägt einmal auf einen Baum oder Felsen
 export function harvest(db: DB, saveId: number, nodeId: unknown, now: number): GameEvents {
@@ -12,11 +12,16 @@ export function harvest(db: DB, saveId: number, nodeId: unknown, now: number): G
   if (now - save.last_harvest_at < HARVEST_COOLDOWN_MS) throw new GameError('TOO_FAST', 'Nicht so schnell!', 429);
 
   const def = NODES[node.type];
+  // Forschung "Schärfere Äxte": mehr Holz pro Schlag
+  const extraHolz = readResearch(db, saveId).reduce((s, f) => s + (RESEARCH[f].effekt.ernte ?? 0), 0);
+  const ertrag: Amounts = { ...def.yield };
+  if (ertrag.wood) ertrag.wood += extraHolz;
+
   const stock = readStock(db, saveId);
-  const cap = cityStats(readBuildings(db, saveId)).capacity;
+  const cap = stadtWerte(db, saveId).capacity;
   const gained: Amounts = {};
   for (const r of RESOURCE_IDS) {
-    const menge = (def.yield as Amounts)[r] ?? 0;
+    const menge = ertrag[r] ?? 0;
     if (!menge) continue;
     const grenze = cap[r];
     if (grenze !== null && stock[r] >= grenze) {
@@ -28,8 +33,12 @@ export function harvest(db: DB, saveId: number, nodeId: unknown, now: number): G
   }
   writeStock(db, saveId, stock);
 
-  if (node.hitsLeft <= 1) db.prepare('DELETE FROM nodes WHERE id = ?').run(node.id);
-  else db.prepare('UPDATE nodes SET hits_left = hits_left - 1 WHERE id = ?').run(node.id);
+  if (node.hitsLeft <= 1) {
+    db.prepare('DELETE FROM nodes WHERE id = ?').run(node.id);
+    aufgabeZaehlen(db, saveId, node.type === 'tree' ? 'faellen' : 'abbauen'); // für Gretas Aufgabe
+  } else {
+    db.prepare('UPDATE nodes SET hits_left = hits_left - 1 WHERE id = ?').run(node.id);
+  }
   db.prepare('UPDATE game_saves SET last_harvest_at = ? WHERE id = ?').run(now, saveId);
 
   return { ...addXp(db, saveId, XP.harvest), gained };

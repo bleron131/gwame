@@ -58,10 +58,13 @@ Selbst bauen: `npm run build:pages` → fertige Seite in `client/dist`.
 shared/   Spielregeln, die Server UND Browser benutzen
   src/buildings.ts   alle Gebäude mit Kosten, Produktion, Level  ← hier neue Gebäude eintragen
   src/resources.ts   alle Rohstoffe
-  src/rules.ts       Formeln: Verbesserungskosten, Lager, Einwohner, Erfahrung
-  src/production.ts  Produktion = Rate × vergangene Zeit (nie über die Lagergrenze)
+  src/research.ts    alle Forschungen (Kosten, Dauer, Wirkung)
+  src/quests.ts      Gretas Aufgaben, der Reihe nach
+  src/rules.ts       Formeln: Verbesserungskosten, Lager, Einwohner, Strassen-Anschluss, Erfahrung
+  src/production.ts  Produktionsketten in kleinen Zeitschritten (nie über die Lagergrenze)
 server/   Node.js + Express + SQLite – entscheidet, was erlaubt ist
   src/db/schema.sql  die Tabellen der Datenbank
+  src/db/migrationen.ts  Umbauten für neue Versionen – alte Spielstände bleiben erhalten
   src/services/      Bauen, Abbauen, Speichern, Produktion nachrechnen
   src/routes/game.ts die Adressen (API), die der Browser aufruft
   tests/             automatische Tests
@@ -82,6 +85,8 @@ Du musst nichts einrichten. Beim ersten `npm run dev` legt der Server die Datei
 - **Sie gehört nicht auf GitHub** (steht in `.gitignore`). Jeder Spieler hat seine eigene.
 - **Sichern:** Server beenden (Strg+C) und die Datei `empire.db` irgendwohin kopieren.
 - **Von vorne anfangen:** ⚙️ im Spiel → neue Stadt – oder bei beendetem Server die Datei löschen.
+- **Neue Version?** Alte Spielstände werden beim Start automatisch erweitert (Migrationen,
+  `server/src/db/migrationen.ts`). Das gilt auch für den Spielstand im Browser auf GitHub Pages.
 - **Hineinschauen:** mit dem kostenlosen Programm „DB Browser for SQLite“ (https://sqlitebrowser.org).
   Nur lesen, solange der Server läuft!
 
@@ -105,7 +110,10 @@ und wachsen mit dem Level. Die Farben werden in `client/src/scene/modelle.tsx` a
 - [x] **Phase 1–3:** Datenbank, 3D-Stadt mit Raster, Bauen/Verbessern/Abreissen, Speichern
 - [x] **Phase 4 (Anfang):** automatische Produktion, Lagergrenzen, Steuern, Offline-Fortschritt
 - [x] **Phase 5 (Anfang):** Einwohner, Erfahrung und Level, freischaltbare Gebäude
-- [ ] Nahrung und Produktionsketten (Holz → Sägewerk → Bretter)
-- [ ] Forschung und Aufgaben
+- [x] **Produktionsketten:** Holz → Sägewerk → Bretter, Getreide → Windmühle → Mehl → Bäckerei → Brot
+  (satte Einwohner zahlen mehr Steuern)
+- [x] **Strassen:** Gebäude mit Strasse zum Rathaus arbeiten 50 % mehr, man läuft schneller
+- [x] **Forschung:** 9 Verbesserungen mit Wartezeit (läuft auch offline weiter)
+- [x] **Aufgaben:** 15 Aufgaben von Greta vor dem Rathaus, mit Belohnungen
 - [ ] Neue Gebiete, Zeitalter, Handel und Monumente
 - [ ] Veröffentlichen (Hosting, Backups, Benutzerkonten)

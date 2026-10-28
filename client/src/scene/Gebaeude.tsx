@@ -184,12 +184,169 @@ function Lagerhaus({ level }: { level: number }) {
   );
 }
 
+// ===== Strasse: 4 Pflaster-Platten, ohne Rand – so gehen Strassen nahtlos ineinander über =====
+const PFLASTER: Farben = { stone: '#cbbd9c' };
+function Strasse() {
+  return (
+    <group position={[0, 0.006, 0]}>
+      {[[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]].map(([x, z], i) => (
+        <Teil key={i} m="stadt/road" p={[x, 0, z]} r={(i % 2) * (Math.PI / 2)} farben={PFLASTER} />
+      ))}
+    </group>
+  );
+}
+
+// ===== Bauernhof: kleine Scheune und Getreidefelder (ab Level 3 auch Mais) =====
+const WEIZEN: Farben = { woodInner: '#e3bd4f' };
+function Feld({ x, z, mais }: { x: number; z: number; mais?: boolean }) {
+  return (
+    <group position={[x, 0, z]}>
+      <Teil m="natur/crops_dirtDoubleRow" s={[0.95, 1, 0.95]} />
+      {[[-0.25, -0.22], [0.25, -0.22], [-0.25, 0.25], [0.25, 0.25]].map(([px, pz], i) => (
+        mais
+          ? <Teil key={i} m="natur/crops_cornStageD" p={[px, 0, pz]} r={i} s={0.7} />
+          : <Teil key={i} m="natur/crops_wheatStageB" p={[px, 0, pz]} r={i * 0.4} s={0.95} farben={WEIZEN} />
+      ))}
+    </group>
+  );
+}
+function Bauernhof({ level }: { level: number }) {
+  return (
+    <group>
+      <Raum x={-0.5} z={-0.5} w={{ W: 'wallWood', N: 'wallWood', E: 'wallWoodWindowShutters', S: 'wallWoodDoor' }} />
+      <Teil m="stadt/roofGable" p={[-0.5, 1, -0.5]} r={Math.PI / 2} farben={dachFarben('#a8432c')} />
+      <Feld x={0.5} z={-0.5} mais={level >= 3} />
+      <Feld x={0.5} z={0.5} />
+      <Feld x={-0.5} z={0.5} />
+      {level >= 2 && (
+        <>
+          <Teil m="natur/fence_simple" p={[-0.5, 0, 0.5]} r={Math.PI} />
+          <Teil m="natur/fence_simple" p={[0.5, 0, 0.5]} r={Math.PI} />
+        </>
+      )}
+      {level >= 4 && <Teil m="stadt/cartHigh" p={[-0.85, 0, -0.1]} s={0.6} />}
+    </group>
+  );
+}
+
+// ===== Windmühle: Steinturm, Spitzdach und Flügel, die sich drehen =====
+function Windmuehle({ level }: { level: number }) {
+  const fluegel = useRef<Group>(null!);
+  useFrame((_, dt) => { fluegel.current.rotation.x += dt * 0.9; });
+  const stock = level >= 3 ? 3 : 2;
+  return (
+    <group>
+      {Array.from({ length: stock }, (_, e) => (
+        <Raum key={e} x={0} z={0} ebene={e} w={{
+          W: 'wallWindowStone', N: 'wall', E: 'wallWindowStone', S: e === 0 ? 'wallDoor' : 'wallWindowStone'
+        }} />
+      ))}
+      <Teil m="stadt/roofHighPoint" p={[0, stock, 0]} farben={dachFarben('#7d5433')} />
+      {/* Die Flügel liegen im Modell quer – darum zuerst nach vorne drehen, dann um die Nabe kreisen */}
+      <group position={[0, stock - 0.25, 0.62]} rotation={[0, Math.PI / 2, 0]}>
+        <group ref={fluegel}><Teil m="stadt/windmill" s={0.62} /></group>
+      </group>
+      {/* Mehlsäcke und Getreide */}
+      <Teil m="natur/pot_large" p={[-0.75, 0, 0.75]} s={1.4} />
+      <Teil m="natur/crops_wheatStageB" p={[0.75, 0, -0.75]} s={1.1} farben={WEIZEN} />
+      {level >= 2 && <Teil m="natur/crops_wheatStageB" p={[-0.75, 0, -0.75]} r={1} s={1.1} farben={WEIZEN} />}
+      {level >= 3 && <Teil m="stadt/cart" p={[0.8, 0, 0.6]} r={Math.PI / 2} s={0.6} />}
+    </group>
+  );
+}
+
+// ===== Sägewerk: offener Schuppen mit Kreissäge, davor ein Stapel Bretter =====
+function Saegewerk({ level }: { level: number }) {
+  const saege = useRef<Mesh>(null!);
+  useFrame((_, dt) => { saege.current.rotation.z -= dt * 12; });
+  const z = -0.4;
+  return (
+    <group>
+      <Raum x={-0.5} z={z} w={{ W: 'poles', N: 'wallWood' }} />
+      <Raum x={0.5} z={z} w={{ E: 'poles', N: 'wallWood' }} />
+      <Teil m="stadt/roofGable" p={[-0.5, 1, z]} farben={dachFarben('#6b4a2b')} />
+      <Teil m="stadt/roofGable" p={[0.5, 1, z]} farben={dachFarben('#6b4a2b')} />
+      {/* Werkbank mit Baumstamm und Säge */}
+      <mesh position={[0, 0.22, z]} castShadow receiveShadow><boxGeometry args={[1.3, 0.08, 0.45]} /><meshStandardMaterial color="#8a5a32" /></mesh>
+      {[-0.55, 0.55].map(x => (
+        <mesh key={x} position={[x, 0.1, z]} castShadow><boxGeometry args={[0.08, 0.2, 0.4]} /><meshStandardMaterial color="#6b4628" /></mesh>
+      ))}
+      <Teil m="natur/log_large" p={[-0.25, 0.26, z - 0.02]} s={[0.7, 0.7, 0.7]} />
+      <mesh ref={saege} position={[0.32, 0.33, z]} castShadow>
+        <cylinderGeometry args={[0.17, 0.17, 0.02, 20]} />
+        <meshStandardMaterial color="#c9ced6" metalness={0.8} roughness={0.25} />
+      </mesh>
+      {/* Fertige Bretter: mehr Bretter bei höherem Level */}
+      {Array.from({ length: Math.min(7, 2 + level) }, (_, i) => (
+        <mesh key={i} position={[0.35, 0.035 + i * 0.065, 0.6]} rotation={[0, (i % 2) * 0.08, 0]} castShadow>
+          <boxGeometry args={[0.95, 0.055, 0.28]} />
+          <meshStandardMaterial color={i % 2 ? '#d9a86c' : '#e3b57a'} />
+        </mesh>
+      ))}
+      <Teil m="natur/log_stack" p={[-0.55, 0, 0.6]} r={Math.PI / 2} s={1.3} />
+    </group>
+  );
+}
+
+// ===== Bäckerei: Steinhaus mit rauchendem Kamin und einem Marktstand =====
+function Rauch({ p }: { p: V3 }) {
+  const wolken = useRef<Group>(null!);
+  useFrame(({ clock }) => {
+    wolken.current.children.forEach((w, i) => {
+      const t = (clock.elapsedTime * 0.35 + i / 3) % 1; // jede Wolke steigt auf und fängt unten neu an
+      w.position.set(Math.sin(t * 5 + i) * 0.06, t * 0.9, 0);
+      w.scale.setScalar(0.08 + t * 0.14);
+      ((w as Mesh).material as { opacity: number }).opacity = 0.55 * (1 - t);
+    });
+  });
+  return (
+    <group ref={wolken} position={p}>
+      {[0, 1, 2].map(i => (
+        <mesh key={i}><sphereGeometry args={[1, 8, 6]} /><meshStandardMaterial color="#e8e8e8" transparent depthWrite={false} /></mesh>
+      ))}
+    </group>
+  );
+}
+function Baeckerei({ level }: { level: number }) {
+  const stock = level >= 3 ? 2 : 1;
+  const z = -0.35;
+  return (
+    <group>
+      {Array.from({ length: stock }, (_, e) => (
+        <group key={e}>
+          <Raum x={-0.5} z={z} ebene={e} w={{ W: 'wallWindowStone', N: 'wall', S: e === 0 ? 'wallDoor' : 'wallWindowShutters' }} />
+          <Raum x={0.5} z={z} ebene={e} w={{ E: 'wallWindowStone', N: 'wall', S: 'wallWindowShutters' }} />
+        </group>
+      ))}
+      <Teil m="stadt/roofGable" p={[-0.5, stock, z]} farben={dachFarben('#8e3b2a')} />
+      <Teil m="stadt/roofGable" p={[0.5, stock, z]} farben={dachFarben('#8e3b2a')} />
+      <Teil m="stadt/chimney" p={[0.6, stock - 0.25, z - 0.1]} r={SEITE.N} />
+      <Rauch p={[0.62, stock + 0.75, z - 0.1]} />
+      <Teil m="stadt/stallRed" p={[0.35, 0, 0.62]} s={0.62} />
+      {/* Brotkorb */}
+      <mesh position={[-0.55, 0.1, 0.65]} castShadow><boxGeometry args={[0.4, 0.2, 0.3]} /><meshStandardMaterial color="#9a6a3a" /></mesh>
+      {[-0.65, -0.55, -0.45].map((x, i) => (
+        <mesh key={i} position={[x, 0.23, 0.65]} rotation={[0, 0, Math.PI / 2]} scale={[1, 1, 0.75]} castShadow>
+          <capsuleGeometry args={[0.045, 0.08, 4, 8]} />
+          <meshStandardMaterial color="#c8843c" />
+        </mesh>
+      ))}
+      {level >= 2 && <Teil m="natur/log_stack" p={[-0.85, 0, -0.2]} s={1.1} />}
+    </group>
+  );
+}
+
 function Modell({ b }: { b: PlacedBuilding }) {
   switch (b.type) {
     case 'townhall': return <Rathaus level={b.level} />;
+    case 'road': return <Strasse />;
     case 'lumberjack': return <Holzfaeller level={b.level} />;
     case 'quarry': return <Steinbruch level={b.level} />;
     case 'house': return <Wohnhaus level={b.level} id={b.id} />;
+    case 'farm': return <Bauernhof level={b.level} />;
+    case 'windmill': return <Windmuehle level={b.level} />;
+    case 'sawmill': return <Saegewerk level={b.level} />;
+    case 'bakery': return <Baeckerei level={b.level} />;
     case 'warehouse': return <Lagerhaus level={b.level} />;
   }
 }
@@ -207,7 +364,8 @@ export function Gebaeude({ b, ausgewaehlt, onTipp }: { b: PlacedBuilding; ausgew
     h.t = Math.min(1, h.t + dt * 2.2);
     // Federnde Animation: von 0 auf volle Grösse mit leichtem Überschwingen
     const k = h.t >= 1 ? 1 : 1 - Math.pow(1 - h.t, 3) + Math.sin(h.t * Math.PI) * 0.15;
-    gruppe.current.scale.setScalar(MASS * Math.max(0.01, k));
+    // Strassen ohne Rand, damit sie lückenlos aneinanderpassen
+    gruppe.current.scale.setScalar((b.type === 'road' ? 1 : MASS) * Math.max(0.01, k));
   });
 
   const tipp = (e: ThreeEvent<MouseEvent>) => { if (e.delta > 10) return; e.stopPropagation(); onTipp(b.id); };
@@ -262,7 +420,10 @@ export const GEBAEUDE_MODELLE = [
   'stadt/wallWoodWindowShutters', 'stadt/wallWoodDoorwaySquareWide', 'stadt/roofCorner', 'stadt/roofGable', 'stadt/roofHighPoint',
   'stadt/bannerRed', 'stadt/lantern', 'stadt/chimney', 'stadt/fence', 'stadt/fenceGate', 'stadt/cart', 'stadt/cartHigh', 'stadt/planks',
   'natur/plant_bushLarge', 'natur/flower_redA', 'natur/flower_yellowA', 'natur/flower_purpleA', 'natur/log_stack', 'natur/log_stackLarge',
-  'natur/stump_roundDetailed', 'natur/stone_tallA', 'natur/stone_tallB', 'natur/stone_largeB', 'natur/stone_smallA', 'natur/stone_smallB', 'natur/pot_large'
+  'natur/stump_roundDetailed', 'natur/stone_tallA', 'natur/stone_tallB', 'natur/stone_largeB', 'natur/stone_smallA', 'natur/stone_smallB', 'natur/pot_large',
+  // Strasse und Produktionsketten
+  'stadt/road', 'stadt/windmill', 'stadt/poles', 'stadt/stallRed', 'natur/crops_dirtDoubleRow', 'natur/crops_wheatStageB',
+  'natur/crops_cornStageD', 'natur/fence_simple', 'natur/log_large'
 ];
 
 export type { V3 };

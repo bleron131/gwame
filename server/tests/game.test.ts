@@ -6,6 +6,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { GRID_SIZE, OFFLINE_LIMIT_SECONDS, START_RESOURCES, upgradeCost, type GameState } from '@empire/shared';
 import { createApp } from '../src/app';
 import { SCHEMA, openDb, type DB } from '../src/db/db';
+import { datenbankEinrichten } from '../src/db/migrationen';
 import { sqljsDb } from '../src/db/sqljsDb';
 import { runAction } from '../src/services/actionRunner';
 import { build, pay, upgrade } from '../src/services/buildingService';
@@ -34,8 +35,9 @@ beforeAll(async () => { SQL = await initSqlJs(); });
 function sqljsNeu(): DB {
   const roh = new SQL.Database();
   roh.exec('PRAGMA foreign_keys = ON');
-  roh.exec(SCHEMA);
-  return sqljsDb(roh);
+  const d = sqljsDb(roh);
+  datenbankEinrichten(d, SCHEMA);
+  return d;
 }
 
 // Alle Regel-Tests laufen zweimal: mit dem Server (better-sqlite3) und mit dem Browser (sql.js)
@@ -165,8 +167,9 @@ afterEach(() => db.close());
 describe('Empire Builder – Browser-Speicher', () => {
   it('Spielstand bleibt nach dem Neuladen der Seite erhalten (sql.js export/import)', () => {
     const roh = new SQL.Database();
-    roh.exec('PRAGMA foreign_keys = ON'); roh.exec(SCHEMA);
+    roh.exec('PRAGMA foreign_keys = ON');
     let d = sqljsDb(roh);
+    datenbankEinrichten(d, SCHEMA);
     const id = createSave(d, 'Browserstadt', jetzt);
     const feld = freiesFeld(loadState(d, id, jetzt));
     runAction(d, id, undefined, jetzt, () => build(d, id, 'house', feld.x, feld.y));
@@ -174,8 +177,9 @@ describe('Empire Builder – Browser-Speicher', () => {
     const bytes = roh.export();     // so speichert der Browser die Datenbank
     d.close();
     const neu = new SQL.Database(bytes); // "Seite neu geladen"
-    neu.exec('PRAGMA foreign_keys = ON'); neu.exec(SCHEMA);
+    neu.exec('PRAGMA foreign_keys = ON');
     d = sqljsDb(neu);
+    datenbankEinrichten(d, SCHEMA);
     expect(loadState(d, id, jetzt)).toEqual(vorher);
     d.close();
   });

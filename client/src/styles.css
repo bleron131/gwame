@@ -161,3 +161,47 @@ button:disabled { cursor: default; }
   .chip b { font-size: 14px; }
   .stadtname { display: none; }
 }
+
+/* ===== Forschung und Aufgaben ===== */
+.balken { display: block; height: 8px; background: rgba(255, 255, 255, .12); border-radius: 5px; overflow: hidden; margin: 4px 0 2px; }
+.balken i { display: block; height: 100%; background: linear-gradient(90deg, var(--gelb), #ffe08a); border-radius: 5px; transition: width .4s; }
+.karte.aktiv { border: 2px solid var(--gelb); }
+.karte.erledigt { opacity: .6; }
+.haken { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--gruen); color: #05351b; font-weight: 700; font-size: 20px; flex-shrink: 0; }
+.greta { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+.greta-bild { width: 58px; height: 58px; border-radius: 50%; background: linear-gradient(#ffe6b3, #f5c46b); display: grid; place-items: center; font-size: 34px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(0, 0, 0, .3); }
+.sprechblase { position: relative; background: #fff; color: #1c2433; border-radius: 4px 16px 16px 16px; padding: 9px 12px; }
+.sprechblase b { font-size: 13px; color: #b5651d; }
+.sprechblase p { margin: 2px 0 0; font-size: 14.5px; line-height: 1.35; }
+.karte.aufgabe.bereit { border: 2px solid var(--gruen); }
+.karte.aufgabe .balken i { background: linear-gradient(90deg, var(--gruen), #8ff0bd); }
+
+.aufgaben-karte { position: fixed; left: 50%; bottom: calc(100px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 4;
+  display: flex; align-items: center; gap: 9px; width: min(92vw, 360px); padding: 8px 12px 8px 8px; text-align: left;
+  background: rgba(255, 255, 255, .96); color: #1c2433; border-radius: 16px; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); }
+.aufgaben-karte.bereit { background: linear-gradient(#ffe27a, #ffc21a); animation: wackeln 1.6s ease-in-out infinite; }
+@keyframes wackeln { 0%, 80%, 100% { transform: translateX(-50%); } 85% { transform: translateX(-50%) rotate(-2deg); } 90% { transform: translateX(-50%) rotate(2deg); } }
+.ak-icon { font-size: 26px; width: 40px; height: 40px; display: grid; place-items: center; background: rgba(0, 0, 0, .06); border-radius: 12px; flex-shrink: 0; }
+.ak-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ak-text b { font-size: 14px; }
+.ak-text small { font-size: 12px; color: #5a6478; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aufgaben-karte .balken { background: rgba(0, 0, 0, .1); height: 6px; }
+.aufgaben-karte .balken i { background: var(--gruen); }
+.ak-zahl { font-weight: 700; font-size: 14px; }
+
+/* Rote Punkte auf den Knöpfen ("hier gibt es etwas") */
+.rund { position: relative; }
+.punkt { position: absolute; top: -5px; right: -5px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; background: var(--rot); color: #fff;
+  font-size: 13px; font-weight: 700; display: grid; place-items: center; box-shadow: 0 2px 6px rgba(0, 0, 0, .3); }
+.rund .zeit { position: absolute; bottom: -9px; left: 50%; transform: translateX(-50%); background: var(--gelb); color: #3d2a00; font-size: 11px; font-weight: 700;
+  padding: 1px 6px; border-radius: 8px; white-space: nowrap; }
+
+/* Gebäude-Info: Kette und Strasse */
+.status { border-radius: 12px; padding: 8px 10px; margin-bottom: 10px; font-size: 13.5px; background: var(--panel-hell); }
+.status.gut { color: var(--gruen); }
+.status.schlecht { color: #ffb0b0; }
+
+@media (max-width: 480px) {
+  .chip em { display: none; }
+}
+.chip em.minus { color: var(--rot); }

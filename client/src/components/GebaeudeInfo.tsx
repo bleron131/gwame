@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BUILDINGS, DEMOLISH_REFUND, canAfford, upgradeCost, type GameState, type PlacedBuilding, type Stock } from '@empire/shared';
+import { BUILDINGS, DEMOLISH_REFUND, RESOURCES, RESOURCE_IDS, canAfford, upgradeCost, type GameState, type PlacedBuilding, type Stock } from '@empire/shared';
 import { mengenText, wirkung, zahl } from '../game/format';
 import { Blatt } from './Blatt';
 import { Kosten } from './Kosten';
@@ -18,8 +18,16 @@ export function GebaeudeInfo({ b, state, vorrat, onVerbessern, onAbreissen, onZu
   const rueckgabe: Record<string, number> = {};
   for (const [r, v] of Object.entries(upgradeCost(b.type, 0))) rueckgabe[r] = Math.floor((v ?? 0) * DEMOLISH_REFUND);
 
+  // Läuft das Gebäude? (fehlen Zutaten, ist das Lager voll, hängt es an der Strasse?)
+  const verbunden = state.stats.verbunden.includes(b.id);
+  // Zutat fehlt nur, wenn das Lager leer ist UND mehr verbraucht als hergestellt wird
+  // (ist das Lager leer, aber die Kette liefert genug nach, läuft alles)
+  const fehlt = RESOURCE_IDS.filter(r => (def.consumes?.[r] ?? 0) > 0 && vorrat[r] < 1 && state.stats.ratesPerMinute[r] < -1e-9);
+  const voll = RESOURCE_IDS.filter(r => (def.production?.[r] ?? 0) > 0 && state.stats.capacity[r] !== null && vorrat[r] >= state.stats.capacity[r]!);
+  const zeigeStrasse = b.type !== 'townhall' && b.type !== 'road' && (def.production || def.population);
+
   return (
-    <Blatt titel={`${def.name}`} untertitel={`Level ${b.level} von ${def.maxLevel}`} icon={def.icon} onZu={onZu}>
+    <Blatt titel={`${def.name}`} untertitel={def.maxLevel > 1 ? `Level ${b.level} von ${def.maxLevel}` : undefined} icon={def.icon} onZu={onZu}>
       <p className="beschreibung">{def.description}</p>
       {b.type === 'townhall' && (
         <div className="werte">
@@ -27,14 +35,31 @@ export function GebaeudeInfo({ b, state, vorrat, onVerbessern, onAbreissen, onZu
           <div><small>Steuern + Rathaus</small><b>🪙 +{zahl(state.stats.ratesPerMinute.gold)}/Min.</b></div>
         </div>
       )}
-      <div className="werte">
+      {fehlt.length > 0 && (
+        <div className="status schlecht">⚠️ Es fehlt: {fehlt.map(r => `${RESOURCES[r].icon} ${RESOURCES[r].name}`).join(', ')} – das Gebäude wartet.</div>
+      )}
+      {voll.length > 0 && <div className="status schlecht">📦 Das Lager ist voll – das Gebäude macht Pause.</div>}
+      {zeigeStrasse && (
+        verbunden
+          ? <div className="status gut">🛣️ Mit dem Rathaus verbunden: +50 % Leistung</div>
+          : <div className="status">🛣️ Nicht verbunden. Bau eine Strasse vom Rathaus bis hierher: +50 %!</div>
+      )}
+      {b.type === 'road' && (
+        <div className="werte">
+          <div><small>Verbundene Gebäude</small><b>🏠 {state.stats.verbunden.length - 1}</b></div>
+          <div><small>Strassenstücke</small><b>🛣️ {state.buildings.filter(x => x.type === 'road').length}</b></div>
+        </div>
+      )}
+      {def.maxLevel > 1 && <div className="werte">
         <div><small>Jetzt</small><b>{jetzt.join(' · ') || '–'}</b></div>
         <div><small>Nach Verbesserung</small><b className="gruen">{max ? 'Höchste Stufe ✓' : danach.join(' · ')}</b></div>
-      </div>
+      </div>}
       {!max && <div className="kosten-zeile">Kosten: <Kosten kosten={kosten} vorrat={vorrat} /></div>}
-      <button className={'knopf gross' + (kann ? '' : ' aus')} disabled={!kann} onClick={onVerbessern}>
-        {max ? 'Höchste Stufe erreicht' : `⬆ Verbessern auf Level ${b.level + 1}`}
-      </button>
+      {def.maxLevel > 1 && (
+        <button className={'knopf gross' + (kann ? '' : ' aus')} disabled={!kann} onClick={onVerbessern}>
+          {max ? 'Höchste Stufe erreicht' : `⬆ Verbessern auf Level ${b.level + 1}`}
+        </button>
+      )}
       {b.type !== 'townhall' && (
         sicher
           ? <button className="knopf gross rot" onClick={() => { setSicher(false); onAbreissen(); }}>Wirklich abreissen? Du bekommst {mengenText(rueckgabe)}</button>

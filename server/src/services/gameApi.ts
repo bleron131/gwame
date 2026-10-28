@@ -4,6 +4,8 @@ import { runAction } from './actionRunner';
 import { build, demolish, upgrade } from './buildingService';
 import { GameError } from './errors';
 import { harvest } from './harvestService';
+import { claimQuest } from './questService';
+import { startResearch } from './researchService';
 import { createSave, deleteAllSaves, findSaveId, loadState, settle } from './saveService';
 
 // Alle Aktionen des Spiels an einer Stelle.
@@ -51,4 +53,14 @@ export function gebaeudeAbreissen(db: DB, now: number, anfrage: string | undefin
 export function naturAbbauen(db: DB, now: number, anfrage: string | undefined, nodeId: unknown): GameResponse {
   const id = spielstand(db);
   return runAction(db, id, anfrage, now, () => harvest(db, id, nodeId, now));
+}
+
+export function forschungStarten(db: DB, now: number, anfrage: string | undefined, forschungId: unknown): GameResponse {
+  const id = spielstand(db);
+  return runAction(db, id, anfrage, now, () => startResearch(db, id, forschungId, now));
+}
+
+export function aufgabeAbholen(db: DB, now: number, anfrage: string | undefined, aufgabeId: unknown): GameResponse {
+  const id = spielstand(db);
+  return runAction(db, id, anfrage, now, () => claimQuest(db, id, aufgabeId));
 }

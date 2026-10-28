@@ -1,4 +1,4 @@
-import type { ApiErrorBody, BuildingType, GameResponse } from '@empire/shared';
+import type { ApiErrorBody, BuildingType, GameResponse, ResearchId } from '@empire/shared';
 
 // Ein Fehler vom Server, mit verständlicher Meldung
 export class ApiError extends Error {
@@ -38,7 +38,9 @@ const serverApi = {
   bauen: (type: BuildingType, x: number, y: number) => anfrage<GameResponse>('POST', '/buildings', { type, x, y }),
   verbessern: (id: number) => anfrage<GameResponse>('POST', `/buildings/${id}/upgrade`),
   abreissen: (id: number) => anfrage<GameResponse>('DELETE', `/buildings/${id}`),
-  abbauen: (nodeId: number) => anfrage<GameResponse>('POST', `/nodes/${nodeId}/harvest`)
+  abbauen: (nodeId: number) => anfrage<GameResponse>('POST', `/nodes/${nodeId}/harvest`),
+  forschen: (id: ResearchId) => anfrage<GameResponse>('POST', `/research/${id}`),
+  abholen: (aufgabeId: string) => anfrage<GameResponse>('POST', `/quests/${aufgabeId}/claim`)
 };
 
 // GitHub-Pages-Version: Datenbank und Spielregeln laufen im Browser (wird erst bei Bedarf geladen)
@@ -53,6 +55,8 @@ export const api: typeof serverApi = IM_BROWSER
       bauen: async (t, x, y) => (await browser()).browserApi.bauen(t, x, y),
       verbessern: async i => (await browser()).browserApi.verbessern(i),
       abreissen: async i => (await browser()).browserApi.abreissen(i),
-      abbauen: async i => (await browser()).browserApi.abbauen(i)
+      abbauen: async i => (await browser()).browserApi.abbauen(i),
+      forschen: async i => (await browser()).browserApi.forschen(i),
+      abholen: async i => (await browser()).browserApi.abholen(i)
     }
   : serverApi;

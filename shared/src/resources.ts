@@ -4,7 +4,11 @@
 export const RESOURCES = {
   gold: { name: 'Gold', icon: '🪙' },
   wood: { name: 'Holz', icon: '🪵' },
-  stone: { name: 'Stein', icon: '🪨' }
+  stone: { name: 'Stein', icon: '🪨' },
+  planks: { name: 'Bretter', icon: '🪚' },
+  grain: { name: 'Getreide', icon: '🌾' },
+  flour: { name: 'Mehl', icon: '🥣' },
+  bread: { name: 'Brot', icon: '🍞' }
 } as const;
 
 export type ResourceId = keyof typeof RESOURCES;
@@ -15,11 +19,11 @@ export type Stock = Record<ResourceId, number>;
 // "Amounts" = eine Menge, bei der nicht jeder Rohstoff vorkommen muss (z. B. Kosten)
 export type Amounts = Partial<Record<ResourceId, number>>;
 
-// Damit startet eine neue Stadt
-export const START_RESOURCES: Stock = { gold: 300, wood: 60, stone: 20 };
-
 export function emptyStock(): Stock {
   const s = {} as Stock;
   for (const r of RESOURCE_IDS) s[r] = 0;
   return s;
 }
+
+// Damit startet eine neue Stadt
+export const START_RESOURCES: Stock = { ...emptyStock(), gold: 300, wood: 60, stone: 20 };

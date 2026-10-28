@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  BUILDINGS, OFFLINE_LIMIT_SECONDS, produce,
-  type BuildingType, type GameResponse, type GameState, type OfflineReport, type Stock
+  BUILDINGS, OFFLINE_LIMIT_SECONDS, RESEARCH, produce,
+  type BuildingType, type GameResponse, type GameState, type OfflineReport, type ResearchId, type Stock
 } from '@empire/shared';
 import { ApiError, api } from '../api/client';
 
@@ -27,6 +27,11 @@ export function useGame() {
   }, []);
 
   const uebernehmen = useCallback((r: GameResponse) => {
+    // Ist seit dem letzten Mal eine Forschung fertig geworden?
+    const vorher = stateRef.current?.forschung.aktiv;
+    if (vorher && r.state.forschung.fertig.includes(vorher)) {
+      melden(`🔬 Forschung fertig: ${RESEARCH[vorher].icon} ${RESEARCH[vorher].name}`, 'erfolg');
+    }
     zeitVersatz.current = r.state.serverTime - Date.now();
     stateRef.current = r.state;
     setState(r.state);
@@ -59,6 +64,15 @@ export function useGame() {
     return () => { clearInterval(t); document.removeEventListener('visibilitychange', sichtbar); };
   }, [laden]);
 
+  // Wenn die laufende Forschung fertig ist, sofort neu laden (nicht erst beim nächsten Abgleich)
+  const forschungEnde = state?.forschung.aktiv ? state.forschung.endetAm : 0;
+  useEffect(() => {
+    if (!forschungEnde) return;
+    const warten = forschungEnde - (Date.now() + zeitVersatz.current) + 300;
+    const t = setTimeout(() => laden(false), Math.max(300, warten));
+    return () => clearTimeout(t);
+  }, [forschungEnde, laden]);
+
   // Eine Aktion ausführen; Fehler werden als Meldung angezeigt
   const ausfuehren = useCallback(async (f: () => Promise<GameResponse>, leiseCodes: string[] = []) => {
     try {
@@ -76,7 +90,9 @@ export function useGame() {
     bauen: (type: BuildingType, x: number, y: number) => ausfuehren(() => api.bauen(type, x, y)),
     verbessern: (id: number) => ausfuehren(() => api.verbessern(id)),
     abreissen: (id: number) => ausfuehren(() => api.abreissen(id)),
-    abbauen: (nodeId: number) => ausfuehren(() => api.abbauen(nodeId), ['TOO_FAST'])
+    abbauen: (nodeId: number) => ausfuehren(() => api.abbauen(nodeId), ['TOO_FAST']),
+    forschen: (id: ResearchId) => ausfuehren(() => api.forschen(id)),
+    abholen: (aufgabeId: string) => ausfuehren(() => api.abholen(aufgabeId))
   }), [ausfuehren]);
 
   const serverJetzt = useCallback(() => Date.now() + zeitVersatz.current, []);

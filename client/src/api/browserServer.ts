@@ -4,12 +4,13 @@
 // Der Spielstand wird im Browser gespeichert (IndexedDB) und bleibt nach dem Schliessen erhalten.
 import initSqlJs, { type Database } from 'sql.js';
 import wasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
-import type { BuildingType, GameResponse } from '@empire/shared';
+import type { BuildingType, GameResponse, ResearchId } from '@empire/shared';
 import schema from '../../../server/src/db/schema.sql?raw';
+import { datenbankEinrichten } from '../../../server/src/db/migrationen';
 import { sqljsDb } from '../../../server/src/db/sqljsDb';
 import { GameError } from '../../../server/src/services/errors';
 import {
-  gebaeudeAbreissen, gebaeudeBauen, gebaeudeVerbessern, naturAbbauen, spielLaden, stadtGruenden
+  aufgabeAbholen, forschungStarten, gebaeudeAbreissen, gebaeudeBauen, gebaeudeVerbessern, naturAbbauen, spielLaden, stadtGruenden
 } from '../../../server/src/services/gameApi';
 import type { DB } from '../../../server/src/db/db';
 import { ApiError } from './client';
@@ -51,7 +52,6 @@ function datenbank(): Promise<DB> {
     const roh: Database = gespeichert ? new SQL.Database(gespeichert) : new SQL.Database();
     const einrichten = () => roh.exec('PRAGMA foreign_keys = ON');
     einrichten();
-    roh.exec(schema);
     // Nach jeder Änderung speichern (export() setzt die Einstellungen zurück, darum danach neu einrichten)
     let geplant = false;
     const speichern = () => {
@@ -59,7 +59,9 @@ function datenbank(): Promise<DB> {
       geplant = true;
       queueMicrotask(() => { geplant = false; const bytes = roh.export(); einrichten(); schreiben(bytes); });
     };
-    return sqljsDb(roh, speichern);
+    const db = sqljsDb(roh, speichern);
+    datenbankEinrichten(db, schema); // Tabellen anlegen + alte Spielstände erweitern
+    return db;
   })();
   return bereit;
 }
@@ -83,5 +85,7 @@ export const browserApi = {
   bauen: (type: BuildingType, x: number, y: number) => ausfuehren(db => gebaeudeBauen(db, Date.now(), id(), type, x, y)),
   verbessern: (gebaeudeId: number) => ausfuehren(db => gebaeudeVerbessern(db, Date.now(), id(), gebaeudeId)),
   abreissen: (gebaeudeId: number) => ausfuehren(db => gebaeudeAbreissen(db, Date.now(), id(), gebaeudeId)),
-  abbauen: (nodeId: number) => ausfuehren(db => naturAbbauen(db, Date.now(), id(), nodeId))
+  abbauen: (nodeId: number) => ausfuehren(db => naturAbbauen(db, Date.now(), id(), nodeId)),
+  forschen: (forschungId: ResearchId) => ausfuehren(db => forschungStarten(db, Date.now(), id(), forschungId)),
+  abholen: (aufgabeId: string) => ausfuehren(db => aufgabeAbholen(db, Date.now(), id(), aufgabeId))
 };

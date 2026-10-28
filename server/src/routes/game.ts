@@ -1,6 +1,8 @@
 import { Router, type Request } from 'express';
 import type { DB } from '../db/db';
-import { gebaeudeAbreissen, gebaeudeBauen, gebaeudeVerbessern, naturAbbauen, spielLaden, stadtGruenden } from '../services/gameApi';
+import {
+  aufgabeAbholen, forschungStarten, gebaeudeAbreissen, gebaeudeBauen, gebaeudeVerbessern, naturAbbauen, spielLaden, stadtGruenden
+} from '../services/gameApi';
 
 // Die Adressen (API), über die der Browser mit dem Server spricht.
 // Die eigentliche Arbeit machen die Funktionen in services/gameApi.ts.
@@ -30,6 +32,12 @@ export function gameRouter(db: DB, uhr: () => number = Date.now): Router {
   });
   r.post('/nodes/:id/harvest', (req, res) => {
     res.json(naturAbbauen(db, uhr(), anfrageId(req), req.params.id));
+  });
+  r.post('/research/:id', (req, res) => {
+    res.json(forschungStarten(db, uhr(), anfrageId(req), req.params.id));
+  });
+  r.post('/quests/:id/claim', (req, res) => {
+    res.json(aufgabeAbholen(db, uhr(), anfrageId(req), req.params.id));
   });
 
   return r;

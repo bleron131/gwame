@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { BUILDINGS, inGrid, type BuildingType, type GameState } from '@empire/shared';
 import { feldSchluessel, weltZuFeld } from '../game/coords';
 import { EinwohnerGruppe } from './Einwohner';
+import { Greta } from './Greta';
 import { GEBAEUDE_MODELLE, Gebaeude, GebaeudeVorschau } from './Gebaeude';
 import { modelleVorladen } from './modelle';
 import { NATUR_MODELLE, NaturObjekt } from './Natur';
@@ -25,6 +26,8 @@ interface Props {
   onNode: (id: number) => void;
   onNah: (id: number | null) => void;
   onDaneben: () => void;
+  onGreta: () => void;
+  gretaBelohnung: boolean; // wartet eine Belohnung bei Greta?
 }
 
 // Die ganze 3D-Welt
@@ -37,12 +40,16 @@ export const Szene = memo(function Szene(p: Props) {
     for (const n of state.nodes) s.add(feldSchluessel(n.x, n.y));
     return s;
   }, [state.buildings, state.nodes]);
+  // Strassen sind belegt (dort kann man nicht bauen), aber man kann darauf laufen
+  const strassen = useMemo(() => new Set(state.buildings.filter(b => b.type === 'road').map(b => feldSchluessel(b.x, b.y))), [state.buildings]);
+  const blockiert = useMemo(() => new Set([...belegt].filter(k => !strassen.has(k))), [belegt, strassen]);
   const hindernisse = useMemo(() => {
     const m = new Map<string, number>();
-    for (const b of state.buildings) m.set(feldSchluessel(b.x, b.y), 0.92);
+    for (const b of state.buildings) if (b.type !== 'road') m.set(feldSchluessel(b.x, b.y), 0.92);
     for (const n of state.nodes) m.set(feldSchluessel(n.x, n.y), 0.7);
     return m;
   }, [state.buildings, state.nodes]);
+  const ohneStrassen = useMemo(() => state.buildings.filter(b => b.type !== 'road'), [state.buildings]);
 
   const bodenTipp = (wx: number, wz: number) => {
     const f = weltZuFeld(wx, wz);
@@ -55,7 +62,7 @@ export const Szene = memo(function Szene(p: Props) {
       <fog attach="fog" args={['#cfe9fa', 55, 140]} />
       <Licht />
       <Boden onTipp={bodenTipp} />
-      <Spieler hindernisse={hindernisse} nodes={state.nodes} onNah={p.onNah} />
+      <Spieler hindernisse={hindernisse} strassen={strassen} nodes={state.nodes} onNah={p.onNah} />
       {/* Modelle werden geladen – bis dahin wird einfach nichts gezeigt */}
       <Suspense fallback={null}>
       <Landschaft />
@@ -65,7 +72,8 @@ export const Szene = memo(function Szene(p: Props) {
       {p.platzieren && p.vorschau && (
         <GebaeudeVorschau x={p.vorschau.x} y={p.vorschau.y} ok={p.vorschauOk} symbol={`${BUILDINGS[p.platzieren].icon} ${BUILDINGS[p.platzieren].name}`} />
       )}
-      <EinwohnerGruppe gebaeude={state.buildings} belegt={belegt} bevoelkerung={state.stats.population} />
+      <EinwohnerGruppe gebaeude={ohneStrassen} belegt={blockiert} bevoelkerung={state.stats.population} />
+      <Greta belohnung={p.gretaBelohnung} onTipp={p.onGreta} />
       </Suspense>
       <Schwebtexte />
     </Canvas>

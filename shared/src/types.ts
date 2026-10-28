@@ -1,5 +1,6 @@
 import type { BuildingType } from './buildings';
 import type { NodeType } from './nodes';
+import type { ResearchId } from './research';
 import type { Amounts, Stock } from './resources';
 import type { CityStats, PlacedBuilding } from './rules';
 
@@ -21,12 +22,26 @@ export interface MapNode {
   hitsLeft: number;
 }
 
+export interface ForschungsStand {
+  fertig: ResearchId[];
+  aktiv: ResearchId | null;
+  endetAm: number; // ms
+}
+
+export interface AufgabenStand {
+  nummer: number;       // Index in QUESTS (= Anzahl erledigter Aufgaben)
+  id: string | null;    // null = alle erledigt
+  zaehler: number;      // mitgezählte Bäume/Felsen
+}
+
 export interface GameState {
   save: SaveInfo;
   resources: Stock;
   buildings: PlacedBuilding[];
   nodes: MapNode[];
   stats: CityStats;
+  forschung: ForschungsStand;
+  aufgabe: AufgabenStand;
   serverTime: number;
 }
 
