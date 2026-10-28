@@ -55,6 +55,10 @@ Selbst bauen: `npm run build:pages` → fertige Seite in `client/dist`.
 - **Land kaufen:** auf ein Schild „Zu verkaufen“ am Stadtrand tippen – oder 💻 PC → Land
 - **Einkaufen, Bauarbeiter anstellen:** 💻 PC (unten rechts, oder im Rathaus)
 - **Blackjack:** Spielhalle bauen und antippen
+- **In Gebäude gehen:** vor die Tür laufen und auf 🚪 tippen – oder Gebäude antippen → Hineingehen.
+  Drinnen: zu Bett, Küche, Regal … laufen und den gelben Knopf tippen. Hinaus durch die Tür oder 🚪 Hinaus
+- **Einrichten:** im Wohnhaus 🛋️ Einrichten → auf einen Kreis tippen → Möbelstück wählen
+- **Nacht ausprobieren:** `?uhr=22` an die Adresse hängen (hält die Uhr fest)
 
 ## So ist das Projekt aufgebaut
 
@@ -67,6 +71,7 @@ shared/   Spielregeln, die Server UND Browser benutzen
   src/land.ts        Parzellen, Land kaufen, Industrie-Gebiet freischalten
   src/shop.ts        Artikel im PC-Shop, Lieferzeiten
   src/blackjack.ts   Blackjack-Regeln (Teilen, Verdoppeln, Statistik)
+  src/moebel.ts      Möbel, Räume mit Stellplätzen, Ausruhen/Essen/Lesen, Rangliste
   src/rules.ts       Formeln: Verbesserungskosten, Lager, Einwohner, Strassen-Anschluss, Erfahrung
   src/production.ts  Produktionsketten in kleinen Zeitschritten (nie über die Lagergrenze)
 server/   Node.js + Express + SQLite – entscheidet, was erlaubt ist
@@ -100,7 +105,7 @@ Du musst nichts einrichten. Beim ersten `npm run dev` legt der Server die Datei
 ## 3D-Modelle
 
 Gebäude, Bäume, Felsen und Blumen stammen aus den kostenlosen Sets von **Kenney** (www.kenney.nl):
-*Fantasy Town Kit* und *Nature Kit*, Lizenz **CC0** – frei nutzbar, auch kommerziell.
+*Fantasy Town Kit*, *Nature Kit*, *Furniture Kit* (Möbel) und *Car Kit* (Lieferwagen), Lizenz **CC0** – frei nutzbar, auch kommerziell.
 Sie liegen in `client/public/modelle/` (mit den Lizenzdateien). Die Gebäude werden in
 `client/src/scene/Gebaeude.tsx` aus Wänden, Dächern und Türen zusammengesetzt („Baupläne“)
 und wachsen mit dem Level. Die Farben werden in `client/src/scene/modelle.tsx` angepasst.
@@ -132,6 +137,12 @@ und wachsen mit dem Level. Die Farben werden in `client/src/scene/modelle.tsx` a
 - [x] **Land kaufen:** Parzellen von 8 × 8 Feldern rund um die Stadt
 - [x] **Industrie:** eigenes Gebiet rechts neben der Stadt (ab Level 6, 60 Einwohner, Sägewerk + Bäckerei).
   Erzmine → Stahlwerk → Maschinenfabrik, Möbelfirma und Handelsfirma (bringt viel Gold)
+- [x] **Innenräume:** Wohnhaus (wird mit dem Haus grösser), Bauernhof, Spielhalle, Bäckerei, Rathaus, Lagerhaus.
+  Einrichten mit 16 Möbeln (Gemütlichkeit = bis +60 % Einwohner), ausruhen (doppelter Ertrag), essen (schneller laufen),
+  lesen (Erfahrung), umziehen (Kleiderschrank), fernsehen (Stadt-Nachrichten), Getreide abfüllen, selbst backen
+- [x] **Tag und Nacht** (ein Tag = 12 Minuten): nachts leuchten Fenster und Laternen
+- [x] **Lieferwagen** fährt auf deinen Strassen zum Rathaus
+- [x] **Blackjack-Rangliste** gegen Leute aus der Gegend, dazu deine 10 grössten Gewinne
 - [x] **💻 PC:** Online-Shop mit Warenkorb (Material, Nahrung, Fertig-Bausätze), Lieferwagen fährt zum Rathaus,
   dazu Personal und Land
 - [ ] Neue Gebiete, Zeitalter, Handel und Monumente

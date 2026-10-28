@@ -4,14 +4,14 @@
 // Der Spielstand wird im Browser gespeichert (IndexedDB) und bleibt nach dem Schliessen erhalten.
 import initSqlJs, { type Database } from 'sql.js';
 import wasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
-import type { BuildingType, GameResponse, ResearchId, ResourceId, ShopId } from '@empire/shared';
+import type { BuildingType, GameResponse, MoebelId, Outfit, ResearchId, ResourceId, ShopId } from '@empire/shared';
 import schema from '../../../server/src/db/schema.sql?raw';
 import { datenbankEinrichten } from '../../../server/src/db/migrationen';
 import { sqljsDb } from '../../../server/src/db/sqljsDb';
 import { GameError } from '../../../server/src/services/errors';
 import * as spiel from '../../../server/src/services/gameApi';
 import type { DB } from '../../../server/src/db/db';
-import { ApiError, type BlackjackZug, type serverApi } from './client';
+import { ApiError, type BlackjackZug, type InnenAktion, type serverApi } from './client';
 
 // ===== Speichern im Browser (IndexedDB) =====
 const SPEICHER = { name: 'empire-builder', tabelle: 'spielstand', schluessel: 'datenbank' };
@@ -85,6 +85,8 @@ export const browserApi: typeof serverApi = {
   neueStadt: (cityName: string, replace = false) => ausfuehren(db => spiel.stadtGruenden(db, t(), cityName, replace)),
   bauen: (type: BuildingType, x: number, y: number, bausatz = false) => ausfuehren(db => spiel.gebaeudeBauen(db, t(), id(), type, x, y, bausatz)),
   mitbauen: (g: number) => ausfuehren(db => spiel.mitbauen(db, t(), id(), g)),
+  moebel: (g: number, platz: number, moebel: MoebelId | null) => ausfuehren(db => spiel.moebelStellen(db, t(), id(), g, platz, moebel)),
+  innen: (g: number, was: InnenAktion, outfit?: Outfit) => ausfuehren(db => spiel.innenAktion(db, t(), id(), g, was, outfit)),
   arbeiter: (g: number, mehr: boolean) => ausfuehren(db => spiel.arbeiter(db, t(), id(), g, mehr)),
   bauarbeiter: (mehr: boolean) => ausfuehren(db => spiel.bauarbeiter(db, t(), id(), mehr)),
   landKaufen: (px: number, py: number) => ausfuehren(db => spiel.landKauf(db, t(), id(), px, py)),

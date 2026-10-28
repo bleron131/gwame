@@ -123,10 +123,11 @@ export interface BlackjackStatistik {
   blackjacks: number;
   bilanz: Partial<Record<ResourceId, number>>;  // gewonnen minus verloren, pro Rohstoff
   besterGewinn: { menge: number; rohstoff: ResourceId } | null;
+  besteGewinne: { menge: number; rohstoff: ResourceId; am: number }[];  // die 10 grössten Gewinne
 }
 
 export const leereStatistik = (): BlackjackStatistik =>
-  ({ runden: 0, siege: 0, niederlagen: 0, unentschieden: 0, blackjacks: 0, bilanz: {}, besterGewinn: null });
+  ({ runden: 0, siege: 0, niederlagen: 0, unentschieden: 0, blackjacks: 0, bilanz: {}, besterGewinn: null, besteGewinne: [] });
 
 export interface BlackjackStand {
   runde: BlackjackSicht | null;

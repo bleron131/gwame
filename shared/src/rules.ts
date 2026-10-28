@@ -1,4 +1,5 @@
 import { BUILDINGS, ausbaustufe, type BuildingType } from './buildings';
+import { gemuetlichBonus, type Einrichtung } from './moebel';
 import { RESEARCH, type ResearchId } from './research';
 import { RESOURCES, RESOURCE_IDS, emptyStock, type Amounts, type ResourceId, type Stock } from './resources';
 
@@ -48,6 +49,8 @@ export interface PlacedBuilding {
   level: number;      // so weit wird gebaut (während des Baus: das Ziel-Level)
   bauEnde?: number;   // Zeitpunkt (ms), an dem der Bau fertig ist (0 oder früher = fertig)
   arbeiter?: number;  // angestellte Arbeiter
+  einrichtung?: Einrichtung; // Möbel (nur Wohnhäuser)
+  aktionAm?: number;  // wann zuletzt etwas drinnen benutzt wurde (Bauernhof, Bäckerei)
 }
 
 // Welches Level wirkt gerade? Während des Baus noch das alte (ein neues Gebäude: 0 = wirkt noch nicht)
@@ -206,7 +209,8 @@ export function cityStats(
       const f = b.level * (1 + forschungBonus + (angeschlossen ? strassenBonus : 0) + helfer);
       produzenten.push({ id: b.id, stufe: def.stufe ?? 0, ein: mal(def.consumes, f), aus: mal(def.production, f) });
     }
-    if (def.population) population += Math.round(einwohner(b.type, b.level) * (angeschlossen ? 1 + strassenBonus : 1));
+    // Gemütlich eingerichtete Häuser ziehen mehr Einwohner an
+    if (def.population) population += Math.round(einwohner(b.type, b.level) * (angeschlossen ? 1 + strassenBonus : 1) * (1 + gemuetlichBonus(b.einrichtung)));
     // Beim Rathaus zählt der Lagerplatz erst ab Level 2
     if (def.storage) extraStorage += def.storage * (b.type === 'townhall' ? b.level - 1 : b.level);
   }

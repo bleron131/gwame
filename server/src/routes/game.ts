@@ -22,6 +22,12 @@ export function gameRouter(db: DB, uhr: () => number = Date.now): Router {
   r.post('/buildings/:id/upgrade', (req, res) => { res.json(spiel.gebaeudeVerbessern(db, uhr(), anfrageId(req), req.params.id)); });
   r.post('/buildings/:id/hammer', (req, res) => { res.json(spiel.mitbauen(db, uhr(), anfrageId(req), req.params.id)); });
   r.post('/buildings/:id/workers', (req, res) => { res.json(spiel.arbeiter(db, uhr(), anfrageId(req), req.params.id, req.body?.mehr)); });
+  r.post('/buildings/:id/furniture', (req, res) => {
+    res.json(spiel.moebelStellen(db, uhr(), anfrageId(req), req.params.id, req.body?.platz, req.body?.moebel ?? null));
+  });
+  r.post('/buildings/:id/inside/:was', (req, res) => {
+    res.json(spiel.innenAktion(db, uhr(), anfrageId(req), req.params.id, req.params.was, req.body?.outfit));
+  });
   r.delete('/buildings/:id', (req, res) => { res.json(spiel.gebaeudeAbreissen(db, uhr(), anfrageId(req), req.params.id)); });
 
   r.post('/nodes/:id/harvest', (req, res) => { res.json(spiel.naturAbbauen(db, uhr(), anfrageId(req), req.params.id)); });

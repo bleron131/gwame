@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { BUILDINGS, RESOURCES, RESOURCE_IDS, xpForLevel, type GameState, type ResourceId, type Stock } from '@empire/shared';
 import { KAMERA_MODI, kamera, kameraModusSetzen } from '../game/input';
 import { zahl } from '../game/format';
+import { tageszeit, uhrText } from '../game/tageszeit';
 
 // Obere Leiste: Rohstoffe, Einwohner, Level
-export function Leiste({ state, vorrat, onEinstellungen }: { state: GameState; vorrat: Stock; onEinstellungen: () => void }) {
+export function Leiste({ state, vorrat, jetzt, onEinstellungen }: { state: GameState; vorrat: Stock; jetzt: number; onEinstellungen: () => void }) {
   const [modus, setModus] = useState(kamera.modus);
   const aktuell = KAMERA_MODI.find(m => m.id === modus)!;
   // Kamera-Knopf: wechselt zwischen Von oben -> Third Person -> Ego
@@ -37,6 +38,9 @@ export function Leiste({ state, vorrat, onEinstellungen }: { state: GameState; v
             </div>
           );
         })}
+        {/* Ausgeruht / satt: wie lange noch? */}
+        {state.buergermeister.ausgeruhtBis > jetzt && <div className="buff" title="Ausgeruht: doppelter Ertrag">😴 {uhrzeit(state.buergermeister.ausgeruhtBis - jetzt)}</div>}
+        {state.buergermeister.sattBis > jetzt && <div className="buff" title="Satt: schneller laufen">🍽️ {uhrzeit(state.buergermeister.sattBis - jetzt)}</div>}
         <div className="chip" title="Einwohner"><span className="icon">👥</span><span className="wert"><b>{state.stats.population}</b><em>Einwohner</em></span></div>
       </div>
       <div className="rechts">
@@ -44,9 +48,16 @@ export function Leiste({ state, vorrat, onEinstellungen }: { state: GameState; v
           <div className="stadtname">{state.save.cityName}</div>
           <div className="lvl"><b>⭐ {level}</b><div className="xp"><i style={{ width: fortschritt + '%' }} /></div></div>
         </div>
+        <div className="uhr" title="Tageszeit – nachts leuchten die Fenster">{tageszeit().hell > 0.5 ? '☀️' : '🌙'} {uhrText(tageszeit().stunde)}</div>
         <button className="rund-klein" onClick={wechseln} aria-label={'Kamera: ' + aktuell.name} title={'Kamera: ' + aktuell.name}>{aktuell.icon}</button>
         <button className="rund-klein" onClick={onEinstellungen} aria-label="Einstellungen">⚙️</button>
       </div>
     </div>
   );
+}
+
+// 125000 ms -> "2:05"
+function uhrzeit(ms: number): string {
+  const s = Math.ceil(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }

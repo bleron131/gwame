@@ -92,6 +92,12 @@ function beenden(db: DB, saveId: number, r: Runde, now: number): GameEvents {
   if (netto > 0 && (!st.besterGewinn || (st.besterGewinn.rohstoff === r.rohstoff ? netto > st.besterGewinn.menge : r.rohstoff === 'gold' && st.besterGewinn.rohstoff !== 'gold'))) {
     st.besterGewinn = { menge: netto, rohstoff: r.rohstoff };
   }
+  // Bestenliste: die 10 grössten Gewinne (Gold zählt vor Rohstoffen)
+  if (netto > 0) {
+    st.besteGewinne = [...(st.besteGewinne ?? []), { menge: netto, rohstoff: r.rohstoff, am: now }]
+      .sort((a, b) => Number(b.rohstoff === 'gold') - Number(a.rohstoff === 'gold') || b.menge - a.menge)
+      .slice(0, 10);
+  }
   db.prepare(`INSERT INTO blackjack_stats (save_id, data) VALUES (?, ?) ON CONFLICT (save_id) DO UPDATE SET data = excluded.data`)
     .run(saveId, JSON.stringify(st));
   r.stapel = []; // wird nicht mehr gebraucht

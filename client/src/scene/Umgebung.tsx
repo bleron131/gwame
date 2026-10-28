@@ -1,14 +1,23 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
-import { CanvasTexture, Object3D, RepeatWrapping, SRGBColorSpace, type DirectionalLight, type Group, type InstancedMesh } from 'three';
+import { CanvasTexture, Color, Object3D, RepeatWrapping, SRGBColorSpace, type DirectionalLight, type Fog, type Group, type HemisphereLight, type InstancedMesh } from 'three';
 import { PARZELLE, WELT, alleParzellen, feldGebiet, parzelleVon, parzellenSchluessel, seededRandom, type Gebiet } from '@empire/shared';
 import { PARZELLE_BREIT, TILE, WELT_3D, feldSchluessel, feldZuWelt, parzellenMitte } from '../game/coords';
 import { spielerPos } from '../game/effects';
-import { Teil } from './modelle';
+import { tageszeit } from '../game/tageszeit';
+import { FENSTER_LICHT, LATERNEN_LICHT, Teil } from './modelle';
+
+// Farben für Tag, Abendrot und Nacht
+const HIMMEL = { tag: new Color('#9fd4f5'), abend: new Color('#f0a46a'), nacht: new Color('#101a33') };
+const NEBEL = { tag: new Color('#cfe9fa'), abend: new Color('#f3c39a'), nacht: new Color('#17223d') };
+const SONNE = { tag: new Color('#fff1dc'), abend: new Color('#ffb26b'), nacht: new Color('#8fa6ff') };
+const tmp = new Color();
 
 // ===== Licht: Himmel + Sonne, die dem Bürgermeister folgt (für scharfe Schatten) =====
+// Mit Tag und Nacht: Die Farben und die Helligkeit ändern sich mit der Uhrzeit.
 export function Licht() {
   const sonne = useRef<DirectionalLight>(null!);
+  const himmel = useRef<HemisphereLight>(null!);
   const { scene } = useThree();
   useEffect(() => {
     const ziel = sonne.current.target;
@@ -16,13 +25,29 @@ export function Licht() {
     return () => { scene.remove(ziel); };
   }, [scene]);
   useFrame(() => {
-    sonne.current.position.set(spielerPos.x + 14, 26, spielerPos.z + 10);
+    const t = tageszeit();
+    // Die Sonne wandert über den Himmel (nachts scheint der Mond von der anderen Seite)
+    const winkel = ((t.stunde - 6) / 14) * Math.PI;
+    const x = t.hell > 0.05 ? Math.cos(winkel) * 20 : -12;
+    sonne.current.position.set(spielerPos.x + x, 14 + Math.max(0, Math.sin(winkel)) * 14, spielerPos.z + 10);
     sonne.current.target.position.set(spielerPos.x, 0, spielerPos.z);
     sonne.current.target.updateMatrixWorld();
+    sonne.current.intensity = 0.35 + 2.05 * t.hell;
+    sonne.current.color.copy(tmp.copy(SONNE.nacht).lerp(SONNE.tag, t.hell).lerp(SONNE.abend, t.abend * 0.7));
+    himmel.current.intensity = 0.45 + 0.65 * t.hell;
+    // Himmel und Nebel
+    const hintergrund = tmp.copy(HIMMEL.nacht).lerp(HIMMEL.tag, t.hell).lerp(HIMMEL.abend, t.abend * 0.55);
+    if (scene.background instanceof Color) scene.background.copy(hintergrund);
+    const nebel = scene.fog as Fog | null;
+    if (nebel) nebel.color.copy(tmp.copy(NEBEL.nacht).lerp(NEBEL.tag, t.hell).lerp(NEBEL.abend, t.abend * 0.55));
+    // Fenster und Laternen leuchten, wenn es dunkel wird
+    const licht = Math.max(0, Math.min(1, (0.75 - t.hell) / 0.5));
+    FENSTER_LICHT.opacity = licht * 0.95; FENSTER_LICHT.visible = licht > 0.01;
+    LATERNEN_LICHT.opacity = licht; LATERNEN_LICHT.visible = licht > 0.01;
   });
   return (
     <>
-      <hemisphereLight args={['#e6f2ff', '#5d6b45', 1.1]} />
+      <hemisphereLight ref={himmel} args={['#e6f2ff', '#5d6b45', 1.1]} />
       <directionalLight
         ref={sonne} castShadow intensity={2.4} color="#fff1dc"
         shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004} shadow-normalBias={0.02}

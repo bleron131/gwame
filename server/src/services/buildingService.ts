@@ -1,5 +1,5 @@
 import {
-  BUILDINGS, DEMOLISH_REFUND, HAMMER_SEKUNDEN, HARVEST_COOLDOWN_MS, RESOURCE_IDS, XP,
+  AUSRUHEN, BUILDINGS, DEMOLISH_REFUND, HAMMER_SEKUNDEN, HARVEST_COOLDOWN_MS, RESOURCE_IDS, XP,
   amountsText, bauzeit, feldGebiet, imBau, isBuildingType, missing, upgradeCost,
   type Amounts, type GameEvents
 } from '@empire/shared';
@@ -81,13 +81,14 @@ export function demolish(db: DB, saveId: number, buildingId: unknown, now: numbe
   return { gained: gutschreiben(db, saveId, zurueck, now) };
 }
 
-// Der Bürgermeister hilft selbst auf der Baustelle mit: jeder Hammerschlag spart 2 Sekunden
+// Der Bürgermeister hilft selbst auf der Baustelle mit: jeder Hammerschlag spart 2 Sekunden (ausgeruht: 4)
 export function hammer(db: DB, saveId: number, buildingId: unknown, now: number): GameEvents {
   const b = findBuilding(db, saveId, buildingId);
   if (!imBau(b, now)) throw new GameError('NOT_UNDER_CONSTRUCTION', 'Hier ist schon alles fertig gebaut.');
   const save = readSave(db, saveId);
   if (now - save.last_harvest_at < HARVEST_COOLDOWN_MS) throw new GameError('TOO_FAST', 'Nicht so schnell!', 429);
-  const neu = Math.max(now, (b.bauEnde ?? 0) - HAMMER_SEKUNDEN * 1000);
+  const sekunden = HAMMER_SEKUNDEN * (save.ausgeruht_bis > now ? AUSRUHEN.ertragFaktor : 1); // ausgeruht: doppelt so viel
+  const neu = Math.max(now, (b.bauEnde ?? 0) - sekunden * 1000);
   db.prepare('UPDATE buildings SET bau_ende = ? WHERE id = ?').run(neu <= now ? now : neu, b.id);
   db.prepare('UPDATE game_saves SET last_harvest_at = ? WHERE id = ?').run(now, saveId);
   return addXp(db, saveId, XP.hammer);

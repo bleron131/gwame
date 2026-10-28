@@ -298,3 +298,65 @@ button:disabled { cursor: default; }
 .abschnitt { font-size: 14px; color: var(--grau); margin: 12px 2px 6px; }
 .karte.bausatz { border: 2px solid var(--gruen); }
 .aktion.bau { background: linear-gradient(#ffe27a, #ffc21a); color: #3d2a00; }
+
+/* ===== Drinnen ===== */
+.innen-titel { position: fixed; left: 50%; top: calc(70px + env(safe-area-inset-top)); transform: translateX(-50%); z-index: 4; pointer-events: none;
+  background: rgba(12, 17, 27, .78); border: 2px solid var(--linie); border-radius: 14px; padding: 6px 14px; text-align: center; width: max-content; max-width: 92vw; }
+.innen-titel b { display: block; font-size: 15px; }
+.innen-titel small { color: var(--grau); font-size: 12px; }
+.innen-hinweis { position: fixed; left: 50%; bottom: calc(100px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 4; pointer-events: none;
+  background: #fff; color: #1c2433; border-radius: 14px; padding: 8px 14px; font-weight: 600; font-size: 14px; width: max-content; max-width: 92vw; text-align: center; }
+.schlaf { position: fixed; inset: 0; z-index: 50; background: #05070d; display: grid; place-items: center; font-size: 60px; color: #fff;
+  animation: schlafen 2.2s ease-in-out forwards; pointer-events: none; }
+@keyframes schlafen { 0% { opacity: 0; } 25%, 70% { opacity: 1; } 100% { opacity: 0; } }
+.schlaf span { animation: wippen 1s ease-in-out infinite; }
+.buff { background: rgba(12, 17, 27, .74); border: 2px solid var(--gelb); border-radius: 12px; padding: 3px 8px; font-size: 13px; font-weight: 700; }
+.buffs { display: flex; gap: 4px; flex-wrap: wrap; pointer-events: none; }
+
+/* Fernseher */
+.tv { background: #222; border-radius: 18px; padding: 12px; margin-bottom: 8px; box-shadow: inset 0 0 0 4px #444; }
+.tv-bild { background: linear-gradient(#1f4e8c, #10294d); border-radius: 10px; min-height: 170px; position: relative; overflow: hidden; padding: 14px 12px 34px; color: #fff; }
+.tv-logo { font-weight: 800; letter-spacing: 2px; color: #ffd45c; font-size: 13px; }
+.tv-text { font-size: 18px; font-weight: 600; margin: 14px 0 0; animation: rein .4s ease-out; color: #fff !important; }
+.tv-ticker { position: absolute; left: 0; bottom: 0; right: 0; background: #c0392b; color: #fff; font-size: 12px; padding: 4px 0; white-space: nowrap; animation: laufband 40s linear infinite; }
+@keyframes laufband { from { transform: translateX(100%); } to { transform: translateX(-250%); } }
+
+/* Kleiderschrank */
+.vorschau-figur { margin: 6px auto 4px; width: 70px; display: flex; flex-direction: column; align-items: center; }
+.vf-hut { width: 34px; height: 26px; border-radius: 4px 4px 0 0; margin-bottom: -2px; }
+.vf-hut[data-hut="kappe"] { height: 14px; border-radius: 14px 14px 0 0; width: 42px; }
+.vf-hut[data-hut="tuch"] { height: 16px; border-radius: 20px 20px 4px 4px; width: 44px; }
+.vf-kopf { width: 40px; height: 40px; border-radius: 10px; background: #f1c27d; }
+.vf-jacke { width: 58px; height: 52px; border-radius: 10px 10px 4px 4px; margin-top: 3px; position: relative; }
+.vf-jacke i { position: absolute; left: 50%; top: 0; bottom: 0; width: 10px; transform: translateX(-50%) skewX(-20deg); background: #c0392b; }
+.farben, .hut-wahl { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 4px; }
+.farben button { width: 34px; height: 34px; border-radius: 50%; border: 3px solid transparent; }
+.farben button.an { border-color: var(--gelb); }
+.hut-wahl button { width: 54px; height: 44px; border-radius: 12px; background: var(--panel-hell); font-size: 24px; border: 3px solid transparent; }
+.hut-wahl button.an { border-color: var(--gelb); }
+
+/* Vorräte und Rangliste */
+.vorrat-zeile { display: flex; gap: 10px; align-items: center; background: var(--panel-hell); border-radius: 12px; padding: 8px 10px; margin-bottom: 6px; }
+.vorrat-zeile > div { flex: 1; }
+.vz-icon { font-size: 26px; }
+.vorrat-zeile small { color: var(--gruen); font-size: 12px; }
+.vorrat-zeile small.minus, .rang .minus { color: var(--rot); }
+.rangliste { display: flex; flex-direction: column; gap: 4px; }
+.rang { display: grid; grid-template-columns: 36px 1fr auto; align-items: center; gap: 6px; background: var(--panel-hell); border-radius: 12px; padding: 8px 10px; margin-bottom: 4px; font-size: 14px; }
+.rang.ich { border: 2px solid var(--gelb); background: rgba(255, 201, 60, .15); }
+.rang-nr { font-weight: 700; text-align: center; }
+.aktion.tuer { background: linear-gradient(#8fd3ff, #3fa3ff); color: #04294d; }
+.aktion small { max-width: 92px; text-align: center; line-height: 1.1; }
+.tisch .stat-knopf.zwei { left: 54px; }
+.uhr { background: rgba(12, 17, 27, .74); border: 2px solid var(--linie); border-radius: 13px; height: 42px; padding: 0 9px; display: flex; align-items: center; font-weight: 700; font-size: 14px; }
+@media (max-width: 480px) { .uhr { font-size: 12px; padding: 0 6px; } }
+.buff { display: flex; align-items: center; height: 40px; }
+@media (max-width: 480px) { .innen-titel { top: calc(140px + env(safe-area-inset-top)); } .aktion small { font-size: 10px; } }
+/* Handy: Rohstoffe unter Level und Knöpfen, über die ganze Breite */
+@media (max-width: 480px) {
+  .leiste { flex-wrap: wrap; }
+  .rechts { order: 1; width: 100%; justify-content: flex-end; }
+  .rohstoffe { order: 2; max-width: 100%; }
+  .meldungen { top: calc(150px + env(safe-area-inset-top)); }
+  .innen-titel { top: calc(150px + env(safe-area-inset-top)); }
+}

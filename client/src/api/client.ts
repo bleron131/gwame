@@ -1,4 +1,4 @@
-import type { ApiErrorBody, BuildingType, GameResponse, ResearchId, ResourceId, ShopId } from '@empire/shared';
+import type { ApiErrorBody, BuildingType, GameResponse, MoebelId, Outfit, ResearchId, ResourceId, ShopId } from '@empire/shared';
 
 // Ein Fehler vom Server, mit verständlicher Meldung
 export class ApiError extends Error {
@@ -37,6 +37,8 @@ export const serverApi = {
   neueStadt: (cityName: string, replace = false) => anfrage<GameResponse>('POST', '/game/new', { cityName, replace }),
   bauen: (type: BuildingType, x: number, y: number, bausatz = false) => anfrage<GameResponse>('POST', '/buildings', { type, x, y, bausatz }),
   mitbauen: (id: number) => anfrage<GameResponse>('POST', `/buildings/${id}/hammer`),
+  moebel: (id: number, platz: number, moebel: MoebelId | null) => anfrage<GameResponse>('POST', `/buildings/${id}/furniture`, { platz, moebel }),
+  innen: (id: number, was: InnenAktion, outfit?: Outfit) => anfrage<GameResponse>('POST', `/buildings/${id}/inside/${was}`, { outfit }),
   arbeiter: (id: number, mehr: boolean) => anfrage<GameResponse>('POST', `/buildings/${id}/workers`, { mehr }),
   bauarbeiter: (mehr: boolean) => anfrage<GameResponse>('POST', '/builders', { mehr }),
   landKaufen: (px: number, py: number) => anfrage<GameResponse>('POST', '/land', { px, py }),
@@ -52,6 +54,7 @@ export const serverApi = {
 };
 
 export type BlackjackZug = 'ziehen' | 'halten' | 'verdoppeln' | 'teilen';
+export type InnenAktion = 'ausruhen' | 'essen' | 'lesen' | 'umziehen' | 'benutzen';
 
 // GitHub-Pages-Version: Datenbank und Spielregeln laufen im Browser (wird erst bei Bedarf geladen)
 export const IM_BROWSER = import.meta.env.VITE_SPEICHER === 'browser';

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  ARBEITER_BONUS, BUILDINGS, DEMOLISH_REFUND, RESOURCES, RESOURCE_IDS, arbeiterPreis, ausbaustufe, canAfford, maxEinsatz, upgradeCost,
+  ARBEITER_BONUS, BUILDINGS, DEMOLISH_REFUND, RESOURCES, RESOURCE_IDS, arbeiterPreis, ausbaustufe, canAfford, hatInnenraum, maxEinsatz, upgradeCost,
   type GameState, type PlacedBuilding, type Stock
 } from '@empire/shared';
 import { dauer, mengenText, wirkung, zahl } from '../game/format';
@@ -8,10 +8,10 @@ import { Blatt } from './Blatt';
 import { Kosten } from './Kosten';
 
 // Infos zu einem Gebäude: was es macht, verbessern, abreissen
-export function GebaeudeInfo({ b, state, vorrat, jetzt: uhr, onVerbessern, onAbreissen, onSpielen, onArbeiter, onPc, onZu }: {
+export function GebaeudeInfo({ b, state, vorrat, jetzt: uhr, onVerbessern, onAbreissen, onSpielen, onArbeiter, onPc, onEintreten, onZu }: {
   b: PlacedBuilding; state: GameState; vorrat: Stock; jetzt: number;
   onVerbessern: () => void; onAbreissen: () => void; onSpielen: () => void;
-  onArbeiter: (mehr: boolean) => void; onPc: () => void; onZu: () => void;
+  onArbeiter: (mehr: boolean) => void; onPc: () => void; onEintreten: () => void; onZu: () => void;
 }) {
   const [sicher, setSicher] = useState(false);
   const def = BUILDINGS[b.type];
@@ -43,6 +43,9 @@ export function GebaeudeInfo({ b, state, vorrat, jetzt: uhr, onVerbessern, onAbr
       {baut && (
         <div className="status bau">🏗️ {b.level > 1 ? `Wird auf Level ${b.level} verbessert` : 'Wird gebaut'} – noch {dauer(rest)}.
           Lauf hin und tippe auf 🔨, um mitzuhelfen!</div>
+      )}
+      {hatInnenraum(b.type) && !baut && (
+        <button className="knopf gross" onClick={onEintreten}>🚪 Hineingehen{b.type === 'house' ? ' – einrichten, ausruhen …' : ''}</button>
       )}
       {b.type === 'townhall' && (
         <button className="knopf gross blau" onClick={onPc}>💻 PC öffnen – Shop, Lieferungen, Personal, Land</button>

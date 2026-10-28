@@ -5,6 +5,7 @@ import { blackjackHalten, blackjackStarten, blackjackTeilen, blackjackVerdoppeln
 import { build, demolish, hammer, upgrade } from './buildingService';
 import { GameError } from './errors';
 import { harvest } from './harvestService';
+import { ausruhen, benutzen, einrichten, essen, lesen, umziehen } from './innenService';
 import { industrieFreischalten, landKaufen } from './landService';
 import { arbeiterAnstellen, arbeiterEntlassen, bauarbeiterAnstellen, bauarbeiterEntlassen } from './personalService';
 import { claimQuest } from './questService';
@@ -79,4 +80,17 @@ export const blackjackZug = (db: DB, now: number, a: Anfrage, zug: unknown) => a
   if (zug === 'verdoppeln') return blackjackVerdoppeln(db, id, now);
   if (zug === 'teilen') return blackjackTeilen(db, id, now);
   throw new GameError('BAD_MOVE', 'Diesen Spielzug gibt es nicht.');
+});
+
+// Drinnen: einrichten, ausruhen, essen, lesen, umziehen, Bauernhof/Bäckerei benutzen
+export const moebelStellen = (db: DB, now: number, a: Anfrage, gebaeudeId: unknown, platz: unknown, moebel: unknown) =>
+  aktion(db, now, a, id => einrichten(db, id, gebaeudeId, platz, moebel, now));
+export type InnenAktion = 'ausruhen' | 'essen' | 'lesen' | 'umziehen' | 'benutzen';
+export const innenAktion = (db: DB, now: number, a: Anfrage, gebaeudeId: unknown, was: unknown, outfit?: unknown) => aktion(db, now, a, id => {
+  if (was === 'ausruhen') return ausruhen(db, id, gebaeudeId, now);
+  if (was === 'essen') return essen(db, id, gebaeudeId, now);
+  if (was === 'lesen') return lesen(db, id, gebaeudeId, now);
+  if (was === 'umziehen') return umziehen(db, id, gebaeudeId, outfit, now);
+  if (was === 'benutzen') return benutzen(db, id, gebaeudeId, now);
+  throw new GameError('BAD_ACTION', 'Das kann man hier nicht tun.');
 });

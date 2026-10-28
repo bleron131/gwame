@@ -1,5 +1,6 @@
 import type { BlackjackStand } from './blackjack';
 import type { Parzelle } from './land';
+import type { Buergermeister } from './moebel';
 import type { Bestellung } from './shop';
 import type { BuildingType } from './buildings';
 import type { NodeType } from './nodes';
@@ -48,6 +49,7 @@ export interface GameState {
   blackjack: BlackjackStand;        // die letzte (oder laufende) Runde und die Statistik
   land: { parzellen: Parzelle[]; industrie: boolean };
   personal: { bauarbeiter: number };
+  buergermeister: Buergermeister;
   shop: { bestellungen: Bestellung[]; bausaetze: Partial<Record<BuildingType, number>>; bestellt: number };
   serverTime: number;
 }

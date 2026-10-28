@@ -7,6 +7,7 @@ export * from './quests';
 export * from './blackjack';
 export * from './land';
 export * from './shop';
+export * from './moebel';
 export * from './rules';
 export * from './production';
 export * from './map';

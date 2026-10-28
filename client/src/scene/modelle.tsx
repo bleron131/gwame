@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useLoader } from '@react-three/fiber';
-import { Color, MeshStandardMaterial, type Material, type Mesh, type Object3D } from 'three';
+import { Color, MeshBasicMaterial, MeshStandardMaterial, type Material, type Mesh, type Object3D } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // 3D-Modelle aus den kostenlosen Kenney-Sets (Lizenz CC0, siehe public/modelle/*/LIZENZ-*.txt)
@@ -78,3 +78,9 @@ export function modelleVorladen(namen: string[]) {
 // Mit diesen Drehungen kommt sie an die anderen Seiten.
 export const SEITE = { W: 0, N: -Math.PI / 2, S: Math.PI / 2, E: Math.PI } as const;
 export type Seite = keyof typeof SEITE;
+
+// ===== Licht in der Nacht =====
+// Diese beiden Materialien teilen sich alle Fenster und Laternen. Die Tageszeit stellt nur
+// ihre Helligkeit ein – so leuchtet die ganze Stadt auf einmal, ohne viel Rechenarbeit.
+export const FENSTER_LICHT = new MeshBasicMaterial({ color: '#ffcf73', transparent: true, opacity: 0, depthWrite: false });
+export const LATERNEN_LICHT = new MeshBasicMaterial({ color: '#fff0b0', transparent: true, opacity: 0, depthWrite: false });

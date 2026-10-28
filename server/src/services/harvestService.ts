@@ -1,4 +1,4 @@
-import { HARVEST_COOLDOWN_MS, NODES, RESEARCH, RESOURCES, RESOURCE_IDS, XP, type Amounts, type GameEvents } from '@empire/shared';
+import { AUSRUHEN, HARVEST_COOLDOWN_MS, NODES, RESEARCH, RESOURCES, RESOURCE_IDS, XP, type Amounts, type GameEvents } from '@empire/shared';
 import type { DB } from '../db/db';
 import { GameError } from './errors';
 import { addXp, aufgabeZaehlen, readNodes, readResearch, readSave, readStock, stadtWerte, writeStock } from './saveService';
@@ -16,6 +16,8 @@ export function harvest(db: DB, saveId: number, nodeId: unknown, now: number): G
   const extraHolz = readResearch(db, saveId).reduce((s, f) => s + (RESEARCH[f].effekt.ernte ?? 0), 0);
   const ertrag: Amounts = { ...def.yield };
   if (ertrag.wood) ertrag.wood += extraHolz;
+  // Ausgeschlafen? Dann doppelter Ertrag
+  if (save.ausgeruht_bis > now) for (const r of Object.keys(ertrag) as (keyof Amounts)[]) ertrag[r] = (ertrag[r] ?? 0) * AUSRUHEN.ertragFaktor;
 
   const stock = readStock(db, saveId);
   const cap = stadtWerte(db, saveId, now).capacity;

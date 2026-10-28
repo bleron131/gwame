@@ -1,8 +1,8 @@
 import {
   BUILDINGS, NACHWACHSEN, NODES, OFFLINE_LIMIT_SECONDS, PARZELLE, QUESTS, SHOP, START_PARZELLEN, START_RESOURCES, TOWNHALL_POS,
-  bausatzMenge, cityStats, emptyStock, gainedBetween, gebietVon, generateNodes, isBuildingType, isResearchId, isShopId,
+  STANDARD_OUTFIT, bausatzMenge, cityStats, isMoebelId, isOutfit, emptyStock, gainedBetween, gebietVon, generateNodes, isBuildingType, isResearchId, isShopId,
   levelForXp, nachwachsPlatz, parzellenSchluessel, produce,
-  type Amounts, type AufgabenStand, type Bestellung, type BuildingType, type CityStats, type ForschungsStand, type GameEvents,
+  type Amounts, type AufgabenStand, type Einrichtung, type Outfit, type Bestellung, type BuildingType, type CityStats, type ForschungsStand, type GameEvents,
   type GameState, type MapNode, type NodeType, type OfflineReport, type Parzelle, type PlacedBuilding, type ResearchId, type ShopId, type Stock
 } from '@empire/shared';
 import type { DB } from '../db/db';
@@ -21,6 +21,10 @@ interface SaveRow {
   research_ends_at: number;        // … und ist dann fertig (ms)
   last_regrow_at: number;          // bis hierhin ist die Natur nachgewachsen (ms)
   bauarbeiter: number;
+  ausgeruht_bis: number;           // der Bürgermeister hat geschlafen: doppelter Ertrag bis dann
+  satt_bis: number;                // … hat gegessen: schneller laufen bis dann
+  gelesen_am: number;
+  outfit: string | null;           // Kleidung als JSON
 }
 
 // Für Version 0.1 gibt es genau einen Spielstand
@@ -50,11 +54,29 @@ export function writeStock(db: DB, saveId: number, stock: Amounts): void {
 }
 
 export function readBuildings(db: DB, saveId: number): PlacedBuilding[] {
-  const rows = db.prepare('SELECT id, building_type, x, y, level, bau_ende, arbeiter FROM buildings WHERE save_id = ? ORDER BY id').all(saveId) as
-    { id: number; building_type: string; x: number; y: number; level: number; bau_ende: number; arbeiter: number }[];
-  return rows.filter(r => r.building_type in BUILDINGS).map(r => ({
-    id: r.id, type: r.building_type as BuildingType, x: r.x, y: r.y, level: r.level, bauEnde: r.bau_ende, arbeiter: r.arbeiter
-  }));
+  const rows = db.prepare('SELECT id, building_type, x, y, level, bau_ende, arbeiter, einrichtung, aktion_am FROM buildings WHERE save_id = ? ORDER BY id').all(saveId) as
+    { id: number; building_type: string; x: number; y: number; level: number; bau_ende: number; arbeiter: number; einrichtung: string; aktion_am: number }[];
+  return rows.filter(r => r.building_type in BUILDINGS).map(r => {
+    const b: PlacedBuilding = { id: r.id, type: r.building_type as BuildingType, x: r.x, y: r.y, level: r.level, bauEnde: r.bau_ende, arbeiter: r.arbeiter };
+    // Möbel nur mitschicken, wenn es welche gibt (hält den Spielstand klein)
+    const e = leseEinrichtung(r.einrichtung);
+    if (Object.keys(e).length) b.einrichtung = e;
+    if (r.aktion_am) b.aktionAm = r.aktion_am;
+    return b;
+  });
+}
+
+function leseEinrichtung(json: string): Einrichtung {
+  try {
+    const roh = JSON.parse(json || '{}') as Record<string, unknown>;
+    const e: Einrichtung = {};
+    for (const [k, v] of Object.entries(roh)) if (isMoebelId(v) && Number.isInteger(Number(k))) e[Number(k)] = v;
+    return e;
+  } catch { return {}; }
+}
+
+function leseOutfit(json: string | null): Outfit {
+  try { const o = JSON.parse(json ?? 'null'); return isOutfit(o) ? o : STANDARD_OUTFIT; } catch { return STANDARD_OUTFIT; }
 }
 
 // ===== Land =====
@@ -285,6 +307,7 @@ export function loadState(db: DB, saveId: number, now: number): GameState {
     blackjack: blackjackStand(db, saveId),
     land: { parzellen, industrie: parzellen.some(p => gebietVon(p.px, p.py) === 'industrie') },
     personal: { bauarbeiter: save.bauarbeiter },
+    buergermeister: { ausgeruhtBis: save.ausgeruht_bis, sattBis: save.satt_bis, gelesenAm: save.gelesen_am, outfit: leseOutfit(save.outfit) },
     shop: { bestellungen: readBestellungen(db, saveId), bausaetze: readBausaetze(db, saveId), bestellt },
     serverTime: now
   };

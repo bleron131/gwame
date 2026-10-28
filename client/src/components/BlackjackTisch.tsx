@@ -52,8 +52,8 @@ function Statistik({ st }: { st: BlackjackStatistik }) {
 }
 
 // Der Blackjack-Tisch in der Spielhalle
-export function BlackjackTisch({ state, vorrat, onSetzen, onZug, onZu }: {
-  state: GameState; vorrat: Stock;
+export function BlackjackTisch({ state, vorrat, onSetzen, onZug, onRangliste, onZu }: {
+  state: GameState; vorrat: Stock; onRangliste: () => void;
   onSetzen: (rohstoff: ResourceId, menge: number) => Promise<unknown>;
   onZug: (zug: BlackjackZug) => Promise<unknown>;
   onZu: () => void;
@@ -86,6 +86,7 @@ export function BlackjackTisch({ state, vorrat, onSetzen, onZug, onZu }: {
       <div className="tisch">
         <button className="zu" onClick={onZu} aria-label="Schliessen">✕</button>
         <button className="stat-knopf" onClick={() => setStatistik(!statistik)} aria-label="Statistik">📊</button>
+        <button className="stat-knopf zwei" onClick={onRangliste} aria-label="Rangliste">🏆</button>
         <h2>🃏 Blackjack</h2>
         <p className="regeln">Komm näher an 21 als die Bank. Die Bank zieht bis 16 und bleibt ab 17 · Blackjack zahlt 3:2</p>
         {statistik && <Statistik st={state.blackjack.statistik} />}

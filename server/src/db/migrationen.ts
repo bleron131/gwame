@@ -17,7 +17,14 @@ const MIGRATIONEN: string[] = [
    INSERT OR IGNORE INTO plots (save_id, px, py) SELECT id, 0, 0 FROM game_saves;
    INSERT OR IGNORE INTO plots (save_id, px, py) SELECT id, 1, 0 FROM game_saves;
    INSERT OR IGNORE INTO plots (save_id, px, py) SELECT id, 0, 1 FROM game_saves;
-   INSERT OR IGNORE INTO plots (save_id, px, py) SELECT id, 1, 1 FROM game_saves;`
+   INSERT OR IGNORE INTO plots (save_id, px, py) SELECT id, 1, 1 FROM game_saves;`,
+  // 3: Innenräume – Möbel in Häusern, Aktionen drinnen, Zustand und Kleidung des Bürgermeisters
+  `ALTER TABLE buildings ADD COLUMN einrichtung TEXT NOT NULL DEFAULT '{}';
+   ALTER TABLE buildings ADD COLUMN aktion_am INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE game_saves ADD COLUMN ausgeruht_bis INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE game_saves ADD COLUMN satt_bis INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE game_saves ADD COLUMN gelesen_am INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE game_saves ADD COLUMN outfit TEXT;`
 ];
 
 export const DB_VERSION = MIGRATIONEN.length;

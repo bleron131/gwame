@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BUILDINGS, OFFLINE_LIMIT_SECONDS, RESEARCH, produce,
-  type BuildingType, type GameResponse, type GameState, type OfflineReport, type ResearchId, type ResourceId, type ShopId, type Stock
+  type BuildingType, type GameResponse, type GameState, type MoebelId, type OfflineReport, type Outfit, type ResearchId, type ResourceId, type ShopId, type Stock
 } from '@empire/shared';
-import { ApiError, api, type BlackjackZug } from '../api/client';
+import { ApiError, api, type BlackjackZug, type InnenAktion } from '../api/client';
 import { uhr } from './effects';
 
 export type Status = 'laden' | 'keinSpiel' | 'bereit' | 'fehler';
@@ -111,6 +111,8 @@ export function useGame() {
     neueStadt: (name: string, ersetzen = false) => ausfuehren(() => api.neueStadt(name, ersetzen)),
     bauen: (type: BuildingType, x: number, y: number, bausatz = false) => ausfuehren(() => api.bauen(type, x, y, bausatz)),
     mitbauen: (id: number) => ausfuehren(() => api.mitbauen(id), ['TOO_FAST']),
+    moebel: (id: number, platz: number, moebel: MoebelId | null) => ausfuehren(() => api.moebel(id, platz, moebel)),
+    innen: (id: number, was: InnenAktion, outfit?: Outfit) => ausfuehren(() => api.innen(id, was, outfit)),
     arbeiter: (id: number, mehr: boolean) => ausfuehren(() => api.arbeiter(id, mehr)),
     bauarbeiter: (mehr: boolean) => ausfuehren(() => api.bauarbeiter(mehr)),
     landKaufen: (px: number, py: number) => ausfuehren(() => api.landKaufen(px, py)),

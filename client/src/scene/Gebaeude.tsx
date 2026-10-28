@@ -4,7 +4,7 @@ import type { Group, Mesh } from 'three';
 import { bauzeit, type PlacedBuilding } from '@empire/shared';
 import { feldZuWelt } from '../game/coords';
 import { serverJetzt } from '../game/effects';
-import { SEITE, Teil, type Farben, type Seite } from './modelle';
+import { FENSTER_LICHT, LATERNEN_LICHT, SEITE, Teil, type Farben, type Seite } from './modelle';
 import { textTextur } from './textSprite';
 
 // Ein Feld unserer Stadt ist 2 x 2 Baukasten-Felder gross.
@@ -14,13 +14,31 @@ const MASS = 0.95;
 type V3 = [number, number, number];
 
 // Die Wände eines Baukasten-Feldes: w = { S: 'wallDoor', W: 'wall', … }
+// Hinter jedem Fenster hängt eine leuchtende Fläche – nachts sieht man so Licht in den Häusern.
 function Raum({ x, z, ebene = 0, w, farben }: { x: number; z: number; ebene?: number; w: Partial<Record<Seite, string>>; farben?: Farben }) {
   return (
     <>
       {(Object.entries(w) as [Seite, string][]).map(([seite, m]) => (
-        <Teil key={seite} m={'stadt/' + m} p={[x, ebene, z]} r={SEITE[seite]} farben={farben} />
+        <group key={seite}>
+          <Teil m={'stadt/' + m} p={[x, ebene, z]} r={SEITE[seite]} farben={farben} />
+          {m.includes('Window') && (
+            <group position={[x, ebene, z]} rotation={[0, SEITE[seite], 0]}>
+              <mesh position={[-0.36, 0.5, 0]} rotation={[0, -Math.PI / 2, 0]} material={FENSTER_LICHT}><planeGeometry args={[0.8, 0.8]} /></mesh>
+            </group>
+          )}
+        </group>
       ))}
     </>
+  );
+}
+
+// Eine Laterne, die nachts leuchtet
+function Laterne({ p, s = 0.7 }: { p: V3; s?: number }) {
+  return (
+    <group position={p}>
+      <Teil m="stadt/lantern" s={s} />
+      <mesh position={[0, 1.36 * s, 0]} material={LATERNEN_LICHT}><sphereGeometry args={[0.12, 10, 8]} /></mesh>
+    </group>
   );
 }
 
@@ -70,8 +88,8 @@ function Rathaus({ level }: { level: number }) {
         <planeGeometry args={[0.4, 0.25]} />
         <meshStandardMaterial color="#f1c40f" side={2} />
       </mesh>
-      <Teil m="stadt/lantern" p={[-1.0, 0, 1.0]} s={0.7} />
-      <Teil m="stadt/lantern" p={[1.0, 0, 1.0]} s={0.7} />
+      <Laterne p={[-1.0, 0, 1.0]} s={0.7} />
+      <Laterne p={[1.0, 0, 1.0]} s={0.7} />
     </group>
   );
 }
@@ -111,7 +129,7 @@ function Mehrfamilienhaus({ level, id }: { level: number; id: number }) {
       <Teil m="stadt/chimney" p={[0.6, stock - 0.25, z - 0.1]} r={SEITE.N} />
       <Teil m="stadt/fence" p={[0.5, 0, 0.5]} r={SEITE.S} />
       <Teil m="natur/plant_bushLarge" p={[0.55, 0, 0.75]} s={1.3} />
-      {level >= 7 && <Teil m="stadt/lantern" p={[-0.95, 0, 0.6]} s={0.7} />}
+      {level >= 7 && <Laterne p={[-0.95, 0, 0.6]} s={0.7} />}
     </group>
   );
 }
@@ -436,8 +454,8 @@ function Spielhalle({ level }: { level: number }) {
       </mesh>
       <Teil m="stadt/bannerGreen" p={[-0.5, stock - 1, z]} r={SEITE.S} />
       <Teil m="stadt/bannerGreen" p={[0.5, stock - 1, z]} r={SEITE.S} />
-      <Teil m="stadt/lantern" p={[-0.95, 0, 0.55]} s={0.7} />
-      <Teil m="stadt/lantern" p={[0.95, 0, 0.55]} s={0.7} />
+      <Laterne p={[-0.95, 0, 0.55]} s={0.7} />
+      <Laterne p={[0.95, 0, 0.55]} s={0.7} />
       {level >= 2 && <Teil m="natur/plant_bushLarge" p={[0.5, 0, 0.65]} s={1.4} />}
       {level >= 4 && <Teil m="stadt/fountainRound" p={[-0.4, 0, 0.7]} s={0.35} />}
     </group>
@@ -469,7 +487,7 @@ function Erzmine({ level }: { level: number }) {
       {Array.from({ length: Math.min(4, level + 1) }, (_, k) => (
         <Teil key={k} m={k % 2 ? 'natur/stone_smallA' : 'natur/stone_smallB'} p={[0.55 + (k % 2) * 0.25, 0, 0.35 + Math.floor(k / 2) * 0.3]} r={k} s={1.5} farben={ERZ} />
       ))}
-      <Teil m="stadt/lantern" p={[-0.6, 0, 0.3]} s={0.6} />
+      <Laterne p={[-0.6, 0, 0.3]} s={0.6} />
     </group>
   );
 }
