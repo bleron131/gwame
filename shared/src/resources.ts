@@ -8,7 +8,12 @@ export const RESOURCES = {
   planks: { name: 'Bretter', icon: '🪚' },
   grain: { name: 'Getreide', icon: '🌾' },
   flour: { name: 'Mehl', icon: '🥣' },
-  bread: { name: 'Brot', icon: '🍞' }
+  bread: { name: 'Brot', icon: '🍞' },
+  // Industrie
+  ore: { name: 'Erz', icon: '🟤' },
+  steel: { name: 'Stahl', icon: '🔩' },
+  machines: { name: 'Maschinen', icon: '⚙️' },
+  furniture: { name: 'Möbel', icon: '🪑' }
 } as const;
 
 export type ResourceId = keyof typeof RESOURCES;

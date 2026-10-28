@@ -1,4 +1,4 @@
-import { BUILDINGS, RESOURCES, RESOURCE_IDS, maxEinsatz, type Amounts, type BuildingType } from '@empire/shared';
+import { BUILDINGS, RESOURCES, RESOURCE_IDS, einwohner, maxEinsatz, type Amounts, type BuildingType } from '@empire/shared';
 
 const EINHEITEN = ['', 'K', 'M', 'B', 'T'];
 
@@ -42,7 +42,7 @@ export function wirkung(type: BuildingType, level: number): string[] {
       if (v) t.push(`−${zahl(v * level)} ${RESOURCES[r].icon}/Min.`);
     }
   }
-  if ('population' in def && def.population) t.push(`+${def.population * level} 👥 Einwohner`);
+  if ('population' in def && def.population) t.push(`+${einwohner(type, level)} 👥 Einwohner`);
   if ('storage' in def && def.storage) {
     const platz = def.storage * (type === 'townhall' ? level - 1 : level);
     if (platz > 0) t.push(`+${zahl(platz)} 📦 Lagerplatz`);

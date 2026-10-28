@@ -1,4 +1,6 @@
-import type { BlackjackSicht } from './blackjack';
+import type { BlackjackStand } from './blackjack';
+import type { Parzelle } from './land';
+import type { Bestellung } from './shop';
 import type { BuildingType } from './buildings';
 import type { NodeType } from './nodes';
 import type { ResearchId } from './research';
@@ -43,13 +45,17 @@ export interface GameState {
   stats: CityStats;
   forschung: ForschungsStand;
   aufgabe: AufgabenStand;
-  blackjack: BlackjackSicht | null; // die letzte (oder laufende) Runde am Blackjack-Tisch
+  blackjack: BlackjackStand;        // die letzte (oder laufende) Runde und die Statistik
+  land: { parzellen: Parzelle[]; industrie: boolean };
+  personal: { bauarbeiter: number };
+  shop: { bestellungen: Bestellung[]; bausaetze: Partial<Record<BuildingType, number>>; bestellt: number };
   serverTime: number;
 }
 
 // Besondere Ereignisse nach einer Aktion (für Meldungen im Browser)
 export interface GameEvents {
   levelUp?: number;
+  bauEnde?: number;           // ein Bau hat begonnen und ist dann fertig
   unlocked?: BuildingType[];
   gained?: Amounts;
 }

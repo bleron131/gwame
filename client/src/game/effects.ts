@@ -30,3 +30,7 @@ export function schwebtexteAbo(f: () => void) { zuhoerer.add(f); return () => { 
 export function schwebtexteJetzt() { return texte; }
 
 export const jetztSek = () => performance.now() / 1000;
+
+// Die Uhr des Servers (für Baustellen-Balken und Lieferwagen in der 3D-Welt)
+export const uhr = { versatz: 0 };
+export const serverJetzt = () => Date.now() + uhr.versatz;

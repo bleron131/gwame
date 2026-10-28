@@ -86,3 +86,39 @@ CREATE TABLE IF NOT EXISTS blackjack_games (
     data TEXT NOT NULL,
     FOREIGN KEY (save_id) REFERENCES game_saves(id) ON DELETE CASCADE
 );
+
+-- Blackjack-Statistik (Siege, Niederlagen, grösster Gewinn …) als JSON
+CREATE TABLE IF NOT EXISTS blackjack_stats (
+    save_id INTEGER PRIMARY KEY,
+    data TEXT NOT NULL,
+    FOREIGN KEY (save_id) REFERENCES game_saves(id) ON DELETE CASCADE
+);
+
+-- Land: welche Parzellen (8 x 8 Felder) dir gehören
+CREATE TABLE IF NOT EXISTS plots (
+    save_id INTEGER NOT NULL,
+    px INTEGER NOT NULL,
+    py INTEGER NOT NULL,
+    PRIMARY KEY (save_id, px, py),
+    FOREIGN KEY (save_id) REFERENCES game_saves(id) ON DELETE CASCADE
+);
+
+-- Bestellungen aus dem PC-Shop (posten = JSON { artikel: anzahl })
+CREATE TABLE IF NOT EXISTS shop_orders (
+    id INTEGER PRIMARY KEY,
+    save_id INTEGER NOT NULL,
+    posten TEXT NOT NULL,
+    bestellt_am INTEGER NOT NULL,
+    ankunft INTEGER NOT NULL,
+    geliefert INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (save_id) REFERENCES game_saves(id) ON DELETE CASCADE
+);
+
+-- Gelieferte Bausätze, die man noch aufstellen kann
+CREATE TABLE IF NOT EXISTS bausaetze (
+    save_id INTEGER NOT NULL,
+    building_type TEXT NOT NULL,
+    anzahl INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (save_id, building_type),
+    FOREIGN KEY (save_id) REFERENCES game_saves(id) ON DELETE CASCADE
+);

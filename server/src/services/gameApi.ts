@@ -1,12 +1,15 @@
-import type { GameResponse } from '@empire/shared';
+import type { GameEvents, GameResponse } from '@empire/shared';
 import type { DB } from '../db/db';
 import { runAction } from './actionRunner';
-import { blackjackHalten, blackjackStarten, blackjackVerdoppeln, blackjackZiehen } from './blackjackService';
-import { build, demolish, upgrade } from './buildingService';
+import { blackjackHalten, blackjackStarten, blackjackTeilen, blackjackVerdoppeln, blackjackZiehen } from './blackjackService';
+import { build, demolish, hammer, upgrade } from './buildingService';
 import { GameError } from './errors';
 import { harvest } from './harvestService';
+import { industrieFreischalten, landKaufen } from './landService';
+import { arbeiterAnstellen, arbeiterEntlassen, bauarbeiterAnstellen, bauarbeiterEntlassen } from './personalService';
 import { claimQuest } from './questService';
 import { startResearch } from './researchService';
+import { bestellen } from './shopService';
 import { createSave, deleteAllSaves, findSaveId, loadState, settle } from './saveService';
 
 // Alle Aktionen des Spiels an einer Stelle.
@@ -36,48 +39,44 @@ export function stadtGruenden(db: DB, now: number, cityName: unknown, ersetzen: 
   return { state: loadState(db, id, now) };
 }
 
-export function gebaeudeBauen(db: DB, now: number, anfrage: string | undefined, type: unknown, x: unknown, y: unknown): GameResponse {
+// Eine Aktion auf dem (einzigen) Spielstand ausführen – sicher in einer Transaktion
+function aktion(db: DB, now: number, anfrage: string | undefined, f: (id: number) => GameEvents | void): GameResponse {
   const id = spielstand(db);
-  return runAction(db, id, anfrage, now, () => build(db, id, type, x, y));
+  return runAction(db, id, anfrage, now, () => f(id));
 }
 
-export function gebaeudeVerbessern(db: DB, now: number, anfrage: string | undefined, gebaeudeId: unknown): GameResponse {
-  const id = spielstand(db);
-  return runAction(db, id, anfrage, now, () => upgrade(db, id, gebaeudeId));
-}
+type Anfrage = string | undefined;
 
-export function gebaeudeAbreissen(db: DB, now: number, anfrage: string | undefined, gebaeudeId: unknown): GameResponse {
-  const id = spielstand(db);
-  return runAction(db, id, anfrage, now, () => demolish(db, id, gebaeudeId));
-}
+export const gebaeudeBauen = (db: DB, now: number, a: Anfrage, type: unknown, x: unknown, y: unknown, bausatz?: unknown) =>
+  aktion(db, now, a, id => build(db, id, type, x, y, now, bausatz === true));
+export const gebaeudeVerbessern = (db: DB, now: number, a: Anfrage, gebaeudeId: unknown) => aktion(db, now, a, id => upgrade(db, id, gebaeudeId, now));
+export const gebaeudeAbreissen = (db: DB, now: number, a: Anfrage, gebaeudeId: unknown) => aktion(db, now, a, id => demolish(db, id, gebaeudeId, now));
+export const mitbauen = (db: DB, now: number, a: Anfrage, gebaeudeId: unknown) => aktion(db, now, a, id => hammer(db, id, gebaeudeId, now));
+export const naturAbbauen = (db: DB, now: number, a: Anfrage, nodeId: unknown) => aktion(db, now, a, id => harvest(db, id, nodeId, now));
+export const forschungStarten = (db: DB, now: number, a: Anfrage, forschungId: unknown) => aktion(db, now, a, id => startResearch(db, id, forschungId, now));
+export const aufgabeAbholen = (db: DB, now: number, a: Anfrage, aufgabeId: unknown) => aktion(db, now, a, id => claimQuest(db, id, aufgabeId, now));
 
-export function naturAbbauen(db: DB, now: number, anfrage: string | undefined, nodeId: unknown): GameResponse {
-  const id = spielstand(db);
-  return runAction(db, id, anfrage, now, () => harvest(db, id, nodeId, now));
-}
+// Personal: Arbeiter in Gebäuden, Bauarbeiter für alle Baustellen
+export const arbeiter = (db: DB, now: number, a: Anfrage, gebaeudeId: unknown, mehr: unknown) =>
+  aktion(db, now, a, id => (mehr === false ? arbeiterEntlassen(db, id, gebaeudeId) : arbeiterAnstellen(db, id, gebaeudeId, now)));
+export const bauarbeiter = (db: DB, now: number, a: Anfrage, mehr: unknown) =>
+  aktion(db, now, a, id => (mehr === false ? bauarbeiterEntlassen(db, id) : bauarbeiterAnstellen(db, id, now)));
 
-export function forschungStarten(db: DB, now: number, anfrage: string | undefined, forschungId: unknown): GameResponse {
-  const id = spielstand(db);
-  return runAction(db, id, anfrage, now, () => startResearch(db, id, forschungId, now));
-}
+// Land und Industrie
+export const landKauf = (db: DB, now: number, a: Anfrage, px: unknown, py: unknown) => aktion(db, now, a, id => landKaufen(db, id, px, py));
+export const industrieKauf = (db: DB, now: number, a: Anfrage) => aktion(db, now, a, id => industrieFreischalten(db, id, now));
 
-export function aufgabeAbholen(db: DB, now: number, anfrage: string | undefined, aufgabeId: unknown): GameResponse {
-  const id = spielstand(db);
-  return runAction(db, id, anfrage, now, () => claimQuest(db, id, aufgabeId));
-}
+// PC-Shop
+export const shopBestellen = (db: DB, now: number, a: Anfrage, posten: unknown) => aktion(db, now, a, id => bestellen(db, id, posten, now));
 
-// Blackjack: Einsatz setzen, ziehen, halten, verdoppeln
-export type BlackjackZug = 'ziehen' | 'halten' | 'verdoppeln';
-export function blackjackSpielen(db: DB, now: number, anfrage: string | undefined, rohstoff: unknown, menge: unknown): GameResponse {
-  const id = spielstand(db);
-  return runAction(db, id, anfrage, now, () => blackjackStarten(db, id, rohstoff, menge));
-}
-export function blackjackZug(db: DB, now: number, anfrage: string | undefined, zug: unknown): GameResponse {
-  const id = spielstand(db);
-  return runAction(db, id, anfrage, now, () => {
-    if (zug === 'ziehen') return blackjackZiehen(db, id);
-    if (zug === 'halten') return blackjackHalten(db, id);
-    if (zug === 'verdoppeln') return blackjackVerdoppeln(db, id);
-    throw new GameError('BAD_MOVE', 'Diesen Spielzug gibt es nicht.');
-  });
-}
+// Blackjack: Einsatz setzen, ziehen, halten, verdoppeln, teilen
+export type BlackjackZug = 'ziehen' | 'halten' | 'verdoppeln' | 'teilen';
+export const blackjackSpielen = (db: DB, now: number, a: Anfrage, rohstoff: unknown, menge: unknown) =>
+  aktion(db, now, a, id => blackjackStarten(db, id, rohstoff, menge, now));
+export const blackjackZug = (db: DB, now: number, a: Anfrage, zug: unknown) => aktion(db, now, a, id => {
+  if (zug === 'ziehen') return blackjackZiehen(db, id, now);
+  if (zug === 'halten') return blackjackHalten(db, id, now);
+  if (zug === 'verdoppeln') return blackjackVerdoppeln(db, id, now);
+  if (zug === 'teilen') return blackjackTeilen(db, id, now);
+  throw new GameError('BAD_MOVE', 'Diesen Spielzug gibt es nicht.');
+});

@@ -1,8 +1,8 @@
 import { useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, type Group } from 'three';
-import type { MapNode } from '@empire/shared';
-import { STADT_HALB, feldSchluessel, feldZuWelt, weltZuFeld } from '../game/coords';
+import type { MapNode, PlacedBuilding } from '@empire/shared';
+import { WELT_3D, feldSchluessel, feldZuWelt, weltZuFeld } from '../game/coords';
 import { jetztSek, spielerAnim, spielerPos } from '../game/effects';
 import { kamera, laufRichtung, steuerEingabe } from '../game/input';
 import { BUERGERMEISTER, Figur, type Bewegung } from './Figur';
@@ -19,7 +19,9 @@ interface Props {
   hindernisse: Map<string, number>; // Feld -> halbe Breite des Hindernisses
   strassen: Set<string>;            // Felder mit Strasse
   nodes: MapNode[];
+  baustellen: PlacedBuilding[];     // hier kann der Bürgermeister mithelfen
   onNah: (nodeId: number | null) => void;
+  onNahBau: (gebaeudeId: number | null) => void;
 }
 
 // Schiebt den Bürgermeister aus Häusern und Bäumen heraus
@@ -35,16 +37,16 @@ function kollision(p: { x: number; z: number }, hindernisse: Map<string, number>
     if (d > 1e-6) { p.x = nx + (ax / d) * RADIUS; p.z = nz + (az / d) * RADIUS; }
     else p.z = cz + halb + RADIUS; // ganz drin: nach vorne raus
   }
-  const grenze = STADT_HALB + 4;
-  p.x = Math.max(-grenze, Math.min(grenze, p.x));
-  p.z = Math.max(-grenze, Math.min(grenze, p.z));
+  // Nicht aus der Welt hinauslaufen
+  p.x = Math.max(WELT_3D.minX - 3, Math.min(WELT_3D.maxX + 3, p.x));
+  p.z = Math.max(WELT_3D.minZ - 3, Math.min(WELT_3D.maxZ + 3, p.z));
 }
 
-export function Spieler({ hindernisse, strassen, nodes, onNah }: Props) {
+export function Spieler({ hindernisse, strassen, nodes, baustellen, onNah, onNahBau }: Props) {
   const figur = useRef<Group>(null!);
   const bewegung = useRef<Bewegung>({ laeuft: false, tempo: 0, schlagAt: 0, werkzeug: true });
-  const daten = useRef({ hindernisse, strassen, nodes, onNah, nah: null as number | null, blick: 0 });
-  daten.current.hindernisse = hindernisse; daten.current.strassen = strassen; daten.current.nodes = nodes; daten.current.onNah = onNah;
+  const daten = useRef({ hindernisse, strassen, nodes, baustellen, onNah, onNahBau, nah: null as number | null, nahBau: null as number | null, blick: 0 });
+  Object.assign(daten.current, { hindernisse, strassen, nodes, baustellen, onNah, onNahBau });
   const { camera, size } = useThree();
   const kamZiel = useRef(new Vector3());
   const blickZiel = useRef(new Vector3());
@@ -97,6 +99,15 @@ export function Spieler({ hindernisse, strassen, nodes, onNah }: Props) {
       if (dist < besteDistanz) { besteDistanz = dist; naechster = n.id; }
     }
     if (naechster !== d.nah) { d.nah = naechster; d.onNah(naechster); }
+
+    // Welche Baustelle ist in der Nähe? (Gebäude sind grösser: etwas mehr Abstand erlaubt)
+    let bau: number | null = null, besteBau = NAH + 0.9;
+    for (const b of d.baustellen) {
+      const [wx, , wz] = feldZuWelt(b.x, b.y);
+      const dist = Math.hypot(wx - p.x, wz - p.z);
+      if (dist < besteBau) { besteBau = dist; bau = b.id; }
+    }
+    if (bau !== d.nahBau) { d.nahBau = bau; d.onNahBau(bau); }
 
     // ===== Kamera =====
     const vx = Math.sin(g.rotation.y), vz = Math.cos(g.rotation.y); // Blickrichtung

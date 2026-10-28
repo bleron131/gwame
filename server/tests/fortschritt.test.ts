@@ -38,7 +38,12 @@ const levelSetzen = (level: number) => db.prepare('UPDATE game_saves SET level =
 const viel = () => writeStock(db, saveId, { gold: 5000, wood: 290, stone: 290, planks: 290 });
 // Alle Bäume und Felsen weg, damit wir frei bauen können
 const platzMachen = () => db.prepare('DELETE FROM nodes WHERE save_id = ?').run(saveId);
-const bauen = (typ: string, x: number, y: number) => runAction(db, saveId, undefined, jetzt, () => build(db, saveId, typ, x, y));
+// Bauen – und die Baustelle gleich fertig machen (hier geht es nicht um die Bauzeit)
+const bauen = (typ: string, x: number, y: number) => {
+  const r = runAction(db, saveId, undefined, jetzt, () => build(db, saveId, typ, x, y, jetzt));
+  db.prepare('UPDATE buildings SET bau_ende = 0').run();
+  return r;
+};
 const warten = (ms: number) => { jetzt += ms; settle(db, saveId, jetzt); };
 
 describe.each([
@@ -115,8 +120,8 @@ describe.each([
     expect(st.resources.wood).toBeCloseTo(100 - 50 + 12 + 18, 5);
     expect(st.stats.ratesPerMinute.wood).toBeCloseTo(18, 5);
     // Schärfere Äxte: +2 Holz pro Schlag
-    db.prepare("INSERT INTO nodes (save_id, node_type, x, y, hits_left) VALUES (?, 'tree', 9, 9, 3)").run(saveId);
-    const baum = zustand().nodes[0];
+    db.prepare("INSERT OR REPLACE INTO nodes (save_id, node_type, x, y, hits_left) VALUES (?, 'tree', 9, 9, 3)").run(saveId);
+    const baum = zustand().nodes.find(n => n.x === 9 && n.y === 9)!;
     const h = runAction(db, saveId, undefined, jetzt, () => harvest(db, saveId, baum.id, jetzt));
     expect(h.events?.gained?.wood).toBe(7);
     // Zweimal dieselbe Forschung geht nicht
@@ -125,7 +130,7 @@ describe.each([
 
   it('Aufgaben: erst erledigen, dann Belohnung abholen – dann kommt die nächste', () => {
     expect(zustand().aufgabe).toEqual({ nummer: 0, id: 'holz', zaehler: 0 });
-    expect(() => runAction(db, saveId, undefined, jetzt, () => claimQuest(db, saveId, 'holz'))).toThrow(/noch nicht erledigt/);
+    expect(() => runAction(db, saveId, undefined, jetzt, () => claimQuest(db, saveId, 'holz', jetzt))).toThrow(/noch nicht erledigt/);
     // Drei Bäume pflanzen und fällen (je 3 Schläge)
     for (let i = 0; i < 3; i++) db.prepare("INSERT INTO nodes (save_id, node_type, x, y, hits_left) VALUES (?, 'tree', ?, 0, 3)").run(saveId, i);
     for (const baum of zustand().nodes) {
@@ -133,16 +138,24 @@ describe.each([
     }
     expect(zustand().aufgabe.zaehler).toBe(3);
     const gold = readStock(db, saveId).gold;
-    const r = runAction(db, saveId, undefined, jetzt, () => claimQuest(db, saveId, 'holz'));
+    const r = runAction(db, saveId, undefined, jetzt, () => claimQuest(db, saveId, 'holz', jetzt));
     expect(r.state.resources.gold).toBeCloseTo(gold + (QUESTS[0].belohnung.gold ?? 0), 5);
     expect(r.state.aufgabe).toEqual({ nummer: 1, id: 'holzfaeller', zaehler: 0 });
     // Die alte Aufgabe kann man nicht nochmal abholen
-    expect(() => runAction(db, saveId, undefined, jetzt, () => claimQuest(db, saveId, 'holz'))).toThrow(/nicht dran/);
+    expect(() => runAction(db, saveId, undefined, jetzt, () => claimQuest(db, saveId, 'holz', jetzt))).toThrow(/nicht dran/);
     // Zweite Aufgabe: Holzfäller bauen
     bauen('lumberjack', 5, 5);
-    expect(runAction(db, saveId, undefined, jetzt, () => claimQuest(db, saveId, 'holzfaeller')).state.aufgabe.id).toBe('nachbarn');
+    expect(runAction(db, saveId, undefined, jetzt, () => claimQuest(db, saveId, 'holzfaeller', jetzt)).state.aufgabe.id).toBe('nachbarn');
   });
 });
+
+// So hat die alte Version eine Stadt angelegt (ohne Parzellen und neue Spalten)
+function alteStadt(d: DB, name: string): number {
+  const id = Number(d.prepare('INSERT INTO game_saves (city_name, seed, last_calculated_at) VALUES (?, 1, ?)').run(name, jetzt).lastInsertRowid);
+  d.prepare("INSERT INTO resources (save_id, resource_type, amount) VALUES (?, 'gold', 300)").run(id);
+  d.prepare("INSERT INTO buildings (save_id, building_type, x, y, level) VALUES (?, 'townhall', 7, 7, 1)").run(id);
+  return id;
+}
 
 describe('Migrationen', () => {
   it('Ein alter Spielstand (ohne Forschungs-Spalten) wird erweitert und bleibt erhalten', () => {
@@ -151,7 +164,7 @@ describe('Migrationen', () => {
     // So sah die Datenbank vor dieser Version aus: nur das Schema, user_version = 0
     const alt = new Database(datei);
     alt.exec(SCHEMA);
-    const id = createSave(alt as unknown as DB, 'Altstadt', jetzt);
+    const id = alteStadt(alt as unknown as DB, 'Altstadt');
     alt.prepare("INSERT INTO buildings (save_id, building_type, x, y, level) VALUES (?, 'house', 0, 0, 2)").run(id);
     expect(alt.pragma('user_version', { simple: true })).toBe(0);
     alt.close();
@@ -162,6 +175,10 @@ describe('Migrationen', () => {
     expect(st.save.cityName).toBe('Altstadt');
     expect(st.buildings.some(b => b.type === 'house' && b.level === 2)).toBe(true);
     expect(st.forschung).toEqual({ fertig: [], aktiv: null, endetAm: 0 });
+    expect(st.land.parzellen).toHaveLength(4); // die 4 Start-Parzellen wurden ergänzt
+    // Gleich beim ersten Laden wachsen ein paar Bäume (ein alter Spielstand hat vielleicht keine mehr)
+    settle(d, id, jetzt);
+    expect(loadState(d, id, jetzt).nodes.filter(n => n.type === 'tree').length).toBeGreaterThan(5);
     d.close();
     // Zweimal öffnen schadet nicht (Migration läuft nur einmal)
     openDb(datei).close();
@@ -171,7 +188,7 @@ describe('Migrationen', () => {
   it('Auch im Browser (sql.js): alter Spielstand aus dem Speicher wird erweitert', () => {
     const roh = new SQL.Database();
     roh.exec(SCHEMA);
-    const id = createSave(sqljsDb(roh), 'Webstadt', jetzt);
+    const id = alteStadt(sqljsDb(roh), 'Webstadt');
     const bytes = roh.export();
     const neu = sqljsDb(new SQL.Database(bytes));
     datenbankEinrichten(neu, SCHEMA);

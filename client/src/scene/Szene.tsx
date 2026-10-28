@@ -1,18 +1,21 @@
 import { Suspense, memo, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { BUILDINGS, inGrid, type BuildingType, type GameState } from '@empire/shared';
+import { BUILDINGS, START_PARZELLEN, gebietVon, parzellenSchluessel, type BuildingType, type GameState, type Parzelle } from '@empire/shared';
 import { feldSchluessel, weltZuFeld } from '../game/coords';
 import { EinwohnerGruppe } from './Einwohner';
-import { Greta } from './Greta';
 import { GEBAEUDE_MODELLE, Gebaeude, GebaeudeVorschau } from './Gebaeude';
+import { Greta } from './Greta';
+import { LandSchilder } from './LandSchilder';
+import { Lieferwagen } from './Lieferwagen';
 import { modelleVorladen } from './modelle';
 import { NATUR_MODELLE, NaturObjekt } from './Natur';
+import { Personal } from './Personal';
 import { Schwebtexte } from './Schwebtexte';
 import { Spieler } from './Spieler';
 import { Boden, FreieFelder, LANDSCHAFT_MODELLE, Landschaft, Licht } from './Umgebung';
 
 // Alle 3D-Modelle schon beim Start laden
-modelleVorladen([...GEBAEUDE_MODELLE, ...NATUR_MODELLE, ...LANDSCHAFT_MODELLE]);
+modelleVorladen([...GEBAEUDE_MODELLE, ...NATUR_MODELLE, ...LANDSCHAFT_MODELLE, 'natur/sign']);
 
 interface Props {
   state: GameState;
@@ -21,12 +24,16 @@ interface Props {
   vorschauOk: boolean;
   ausgewaehlt: number | null;
   nahNode: number | null;
+  nahBau: number | null;
   onFeld: (x: number, y: number) => void;
   onGebaeude: (id: number) => void;
   onNode: (id: number) => void;
   onNah: (id: number | null) => void;
+  onNahBau: (id: number | null) => void;
   onDaneben: () => void;
   onGreta: () => void;
+  onLand: (p: Parzelle) => void;
+  onIndustrie: () => void;
   gretaBelohnung: boolean; // wartet eine Belohnung bei Greta?
 }
 
@@ -50,10 +57,14 @@ export const Szene = memo(function Szene(p: Props) {
     return m;
   }, [state.buildings, state.nodes]);
   const ohneStrassen = useMemo(() => state.buildings.filter(b => b.type !== 'road'), [state.buildings]);
+  const besitz = useMemo(() => new Set(state.land.parzellen.map(parzellenSchluessel)), [state.land.parzellen]);
+  const gekauft = state.land.parzellen.filter(x => gebietVon(x.px, x.py) === 'stadt').length - START_PARZELLEN.length;
+  const baustellen = useMemo(() => state.buildings.filter(b => (b.bauEnde ?? 0) > state.serverTime), [state.buildings, state.serverTime]);
+  const angestellte = state.stats.angestellte;
 
   const bodenTipp = (wx: number, wz: number) => {
     const f = weltZuFeld(wx, wz);
-    if (inGrid(f.x, f.y)) p.onFeld(f.x, f.y); else p.onDaneben();
+    p.onFeld(f.x, f.y);
   };
 
   return (
@@ -61,18 +72,23 @@ export const Szene = memo(function Szene(p: Props) {
       <color attach="background" args={['#9fd4f5']} />
       <fog attach="fog" args={['#cfe9fa', 55, 140]} />
       <Licht />
-      <Boden onTipp={bodenTipp} />
-      <Spieler hindernisse={hindernisse} strassen={strassen} nodes={state.nodes} onNah={p.onNah} />
+      <Boden besitz={besitz} industrie={state.land.industrie} onTipp={bodenTipp} />
+      <Spieler hindernisse={hindernisse} strassen={strassen} nodes={state.nodes} baustellen={baustellen} onNah={p.onNah} onNahBau={p.onNahBau} />
       {/* Modelle werden geladen – bis dahin wird einfach nichts gezeigt */}
       <Suspense fallback={null}>
-      <Landschaft />
-      {p.platzieren && <FreieFelder belegt={belegt} />}
-      {state.buildings.map(b => <Gebaeude key={b.id} b={b} ausgewaehlt={b.id === p.ausgewaehlt} onTipp={p.onGebaeude} />)}
+      <Landschaft besitz={besitz} />
+      <LandSchilder besitz={besitz} gekauft={gekauft} industrie={state.land.industrie} level={state.save.level} onLand={p.onLand} onIndustrie={p.onIndustrie} />
+      {p.platzieren && <FreieFelder belegt={belegt} besitz={besitz} gebiet={BUILDINGS[p.platzieren].gebiet} />}
+      {state.buildings.map(b => (
+        <Gebaeude key={b.id} b={b} ausgewaehlt={b.id === p.ausgewaehlt || b.id === p.nahBau} bauarbeiter={state.personal.bauarbeiter} onTipp={p.onGebaeude} />
+      ))}
       {state.nodes.map(n => <NaturObjekt key={n.id} node={n} nah={n.id === p.nahNode} onTipp={p.onNode} />)}
       {p.platzieren && p.vorschau && (
         <GebaeudeVorschau x={p.vorschau.x} y={p.vorschau.y} ok={p.vorschauOk} symbol={`${BUILDINGS[p.platzieren].icon} ${BUILDINGS[p.platzieren].name}`} />
       )}
-      <EinwohnerGruppe gebaeude={ohneStrassen} belegt={blockiert} bevoelkerung={state.stats.population} />
+      <EinwohnerGruppe gebaeude={ohneStrassen} belegt={blockiert} bevoelkerung={Math.max(0, state.stats.population - angestellte)} />
+      <Personal gebaeude={state.buildings} bauarbeiter={state.personal.bauarbeiter} />
+      <Lieferwagen bestellungen={state.shop.bestellungen} blockiert={blockiert} />
       <Greta belohnung={p.gretaBelohnung} onTipp={p.onGreta} />
       </Suspense>
       <Schwebtexte />

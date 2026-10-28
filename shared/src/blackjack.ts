@@ -58,9 +58,10 @@ export const istBlackjack = (hand: Karte[]) => hand.length === 2 && handWert(han
 export type Ergebnis = 'blackjack' | 'gewonnen' | 'unentschieden' | 'verloren';
 
 // Wer hat gewonnen? (wird erst am Ende der Runde aufgerufen)
-export function ergebnis(spieler: Karte[], bank: Karte[]): Ergebnis {
+// Nach dem Teilen zählt 21 mit zwei Karten nicht als Blackjack, sondern als normale 21.
+export function ergebnis(spieler: Karte[], bank: Karte[], nachTeilen = false): Ergebnis {
   const s = handWert(spieler).wert, b = handWert(bank).wert;
-  const sBj = istBlackjack(spieler), bBj = istBlackjack(bank);
+  const sBj = !nachTeilen && istBlackjack(spieler), bBj = istBlackjack(bank);
   if (sBj && bBj) return 'unentschieden';
   if (sBj) return 'blackjack';
   if (bBj) return 'verloren';
@@ -86,15 +87,48 @@ export function bankZiehtFertig(bank: Karte[], stapel: Karte[]): void {
   while (handWert(bank).wert < 17) bank.push(stapel.pop()!);
 }
 
+// Teilen geht mit zwei Karten vom gleichen Wert (z. B. 8 + 8 oder König + Dame), höchstens 4 Hände
+export const MAX_HAENDE = 4;
+export function kannTeilen(hand: Karte[], anzahlHaende: number): boolean {
+  return hand.length === 2 && anzahlHaende < MAX_HAENDE && handWert([hand[0]]).wert === handWert([hand[1]]).wert;
+}
+
+// Eine Hand des Spielers (nach dem Teilen hat man mehrere)
+export interface Hand {
+  karten: Karte[];
+  einsatz: number;          // nach Verdoppeln doppelt so viel
+  verdoppelt: boolean;
+  fertig: boolean;          // gehalten, überkauft oder 21
+  ergebnis: Ergebnis | null;
+  ausgezahlt: number;       // so viel kam am Ende zurück (inkl. Einsatz)
+}
+
 // Was der Browser von einer Runde sehen darf: die verdeckte Karte der Bank und
 // der Stapel bleiben geheim, solange die Runde läuft (sonst könnte man schummeln).
 export interface BlackjackSicht {
   rohstoff: ResourceId;
-  einsatz: number;          // aktueller Einsatz (nach Verdoppeln doppelt so viel)
-  spieler: Karte[];
+  haende: Hand[];
+  aktiv: number;            // diese Hand ist gerade dran
+  geteilt: boolean;
   bank: (Karte | null)[];   // null = verdeckte Karte
   laeuft: boolean;
-  verdoppelt: boolean;
-  ergebnis: Ergebnis | null;
-  ausgezahlt: number;       // so viel kam am Ende zurück (inkl. Einsatz)
+}
+
+// Die Statistik am Tisch
+export interface BlackjackStatistik {
+  runden: number;
+  siege: number;
+  niederlagen: number;
+  unentschieden: number;
+  blackjacks: number;
+  bilanz: Partial<Record<ResourceId, number>>;  // gewonnen minus verloren, pro Rohstoff
+  besterGewinn: { menge: number; rohstoff: ResourceId } | null;
+}
+
+export const leereStatistik = (): BlackjackStatistik =>
+  ({ runden: 0, siege: 0, niederlagen: 0, unentschieden: 0, blackjacks: 0, bilanz: {}, besterGewinn: null });
+
+export interface BlackjackStand {
+  runde: BlackjackSicht | null;
+  statistik: BlackjackStatistik;
 }

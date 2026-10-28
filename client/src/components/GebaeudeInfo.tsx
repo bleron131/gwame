@@ -1,19 +1,30 @@
 import { useState } from 'react';
-import { BUILDINGS, DEMOLISH_REFUND, RESOURCES, RESOURCE_IDS, canAfford, maxEinsatz, upgradeCost, type GameState, type PlacedBuilding, type Stock } from '@empire/shared';
-import { mengenText, wirkung, zahl } from '../game/format';
+import {
+  ARBEITER_BONUS, BUILDINGS, DEMOLISH_REFUND, RESOURCES, RESOURCE_IDS, arbeiterPreis, ausbaustufe, canAfford, maxEinsatz, upgradeCost,
+  type GameState, type PlacedBuilding, type Stock
+} from '@empire/shared';
+import { dauer, mengenText, wirkung, zahl } from '../game/format';
 import { Blatt } from './Blatt';
 import { Kosten } from './Kosten';
 
 // Infos zu einem Gebäude: was es macht, verbessern, abreissen
-export function GebaeudeInfo({ b, state, vorrat, onVerbessern, onAbreissen, onSpielen, onZu }: {
-  b: PlacedBuilding; state: GameState; vorrat: Stock;
-  onVerbessern: () => void; onAbreissen: () => void; onSpielen: () => void; onZu: () => void;
+export function GebaeudeInfo({ b, state, vorrat, jetzt: uhr, onVerbessern, onAbreissen, onSpielen, onArbeiter, onPc, onZu }: {
+  b: PlacedBuilding; state: GameState; vorrat: Stock; jetzt: number;
+  onVerbessern: () => void; onAbreissen: () => void; onSpielen: () => void;
+  onArbeiter: (mehr: boolean) => void; onPc: () => void; onZu: () => void;
 }) {
   const [sicher, setSicher] = useState(false);
   const def = BUILDINGS[b.type];
+  const stufe = ausbaustufe(b.type, b.level);
+  const naechste = ausbaustufe(b.type, b.level + 1);
+  const baut = (b.bauEnde ?? 0) > uhr;
+  const rest = Math.max(0, ((b.bauEnde ?? 0) - uhr) / 1000);
   const max = b.level >= def.maxLevel;
   const kosten = upgradeCost(b.type, b.level);
-  const kann = !max && canAfford(vorrat, kosten);
+  const kann = !max && !baut && canAfford(vorrat, kosten);
+  const plaetze = def.arbeitsplaetze ?? 0;
+  const arbeiter = b.arbeiter ?? 0;
+  const frei = state.stats.population - state.stats.angestellte;
   const jetzt = wirkung(b.type, b.level), danach = wirkung(b.type, b.level + 1);
   const rueckgabe: Record<string, number> = {};
   for (const [r, v] of Object.entries(upgradeCost(b.type, 0))) rueckgabe[r] = Math.floor((v ?? 0) * DEMOLISH_REFUND);
@@ -27,11 +38,18 @@ export function GebaeudeInfo({ b, state, vorrat, onVerbessern, onAbreissen, onSp
   const zeigeStrasse = b.type !== 'townhall' && b.type !== 'road' && (def.production || def.population);
 
   return (
-    <Blatt titel={`${def.name}`} untertitel={def.maxLevel > 1 ? `Level ${b.level} von ${def.maxLevel}` : undefined} icon={def.icon} onZu={onZu}>
+    <Blatt titel={stufe.name} untertitel={def.maxLevel > 1 ? `Level ${b.level} von ${def.maxLevel}` : undefined} icon={stufe.icon} onZu={onZu}>
       <p className="beschreibung">{def.description}</p>
+      {baut && (
+        <div className="status bau">🏗️ {b.level > 1 ? `Wird auf Level ${b.level} verbessert` : 'Wird gebaut'} – noch {dauer(rest)}.
+          Lauf hin und tippe auf 🔨, um mitzuhelfen!</div>
+      )}
+      {b.type === 'townhall' && (
+        <button className="knopf gross blau" onClick={onPc}>💻 PC öffnen – Shop, Lieferungen, Personal, Land</button>
+      )}
       {b.type === 'casino' && (
         <>
-          <button className="knopf gross gelb" onClick={onSpielen}>🃏 An den Blackjack-Tisch{state.blackjack?.laeuft ? ' (Runde läuft)' : ''}</button>
+          <button className="knopf gross gelb" onClick={onSpielen}>🃏 An den Blackjack-Tisch{state.blackjack.runde?.laeuft ? ' (Runde läuft)' : ''}</button>
           <div className="werte">
             <div><small>Höchsteinsatz Gold</small><b>🪙 {zahl(maxEinsatz('gold', b.level))}</b></div>
             <div><small>Höchsteinsatz Rohstoffe</small><b>{zahl(maxEinsatz('wood', b.level))} je Sorte</b></div>
@@ -53,6 +71,23 @@ export function GebaeudeInfo({ b, state, vorrat, onVerbessern, onAbreissen, onSp
           ? <div className="status gut">🛣️ Mit dem Rathaus verbunden: +50 % Leistung</div>
           : <div className="status">🛣️ Nicht verbunden. Bau eine Strasse vom Rathaus bis hierher: +50 %!</div>
       )}
+      {plaetze > 0 && (
+        <div className="arbeiter-box">
+          <div>
+            <b>🧑‍🌾 Arbeiter: {arbeiter} / {plaetze}</b>
+            <small>Jeder Arbeiter: +{ARBEITER_BONUS * 100} % · Lohn 1 🪙/Min. · {frei} Einwohner frei</small>
+            {arbeiter < plaetze && <Kosten kosten={arbeiterPreis(arbeiter)} vorrat={vorrat} />}
+          </div>
+          <div className="knopf-spalte">
+            <button className={'knopf' + (arbeiter < plaetze && frei > 0 && canAfford(vorrat, arbeiterPreis(arbeiter)) ? '' : ' aus')}
+              disabled={arbeiter >= plaetze} onClick={() => onArbeiter(true)}>+ Anstellen</button>
+            {arbeiter > 0 && <button className="knopf leise" onClick={() => onArbeiter(false)}>Entlassen</button>}
+          </div>
+        </div>
+      )}
+      {!max && naechste.name !== stufe.name && (
+        <div className="status gut">✨ Mit Level {b.level + 1} wird daraus ein {naechste.icon} {naechste.name}!</div>
+      )}
       {b.type === 'road' && (
         <div className="werte">
           <div><small>Verbundene Gebäude</small><b>🏠 {state.stats.verbunden.length - 1}</b></div>
@@ -66,7 +101,7 @@ export function GebaeudeInfo({ b, state, vorrat, onVerbessern, onAbreissen, onSp
       {!max && <div className="kosten-zeile">Kosten: <Kosten kosten={kosten} vorrat={vorrat} /></div>}
       {def.maxLevel > 1 && (
         <button className={'knopf gross' + (kann ? '' : ' aus')} disabled={!kann} onClick={onVerbessern}>
-          {max ? 'Höchste Stufe erreicht' : `⬆ Verbessern auf Level ${b.level + 1}`}
+          {max ? 'Höchste Stufe erreicht' : baut ? '🏗️ Wird noch gebaut …' : `⬆ Verbessern auf Level ${b.level + 1}`}
         </button>
       )}
       {b.type !== 'townhall' && (

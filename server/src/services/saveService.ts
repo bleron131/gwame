@@ -1,11 +1,12 @@
 import {
-  BUILDINGS, NODES, OFFLINE_LIMIT_SECONDS, QUESTS, START_RESOURCES, TOWNHALL_POS,
-  cityStats, emptyStock, gainedBetween, generateNodes, isResearchId, levelForXp, produce,
-  type Amounts, type AufgabenStand, type BuildingType, type CityStats, type ForschungsStand, type GameEvents, type GameState,
-  type MapNode, type NodeType, type OfflineReport, type PlacedBuilding, type ResearchId, type Stock
+  BUILDINGS, NACHWACHSEN, NODES, OFFLINE_LIMIT_SECONDS, PARZELLE, QUESTS, SHOP, START_PARZELLEN, START_RESOURCES, TOWNHALL_POS,
+  bausatzMenge, cityStats, emptyStock, gainedBetween, gebietVon, generateNodes, isBuildingType, isResearchId, isShopId,
+  levelForXp, nachwachsPlatz, parzellenSchluessel, produce,
+  type Amounts, type AufgabenStand, type Bestellung, type BuildingType, type CityStats, type ForschungsStand, type GameEvents,
+  type GameState, type MapNode, type NodeType, type OfflineReport, type Parzelle, type PlacedBuilding, type ResearchId, type ShopId, type Stock
 } from '@empire/shared';
 import type { DB } from '../db/db';
-import { blackjackSicht } from './blackjackService';
+import { blackjackStand } from './blackjackService';
 import { GameError } from './errors';
 
 interface SaveRow {
@@ -18,6 +19,8 @@ interface SaveRow {
   last_harvest_at: number;
   research_active: string | null;  // diese Forschung läuft gerade
   research_ends_at: number;        // … und ist dann fertig (ms)
+  last_regrow_at: number;          // bis hierhin ist die Natur nachgewachsen (ms)
+  bauarbeiter: number;
 }
 
 // Für Version 0.1 gibt es genau einen Spielstand
@@ -47,9 +50,22 @@ export function writeStock(db: DB, saveId: number, stock: Amounts): void {
 }
 
 export function readBuildings(db: DB, saveId: number): PlacedBuilding[] {
-  const rows = db.prepare('SELECT id, building_type, x, y, level FROM buildings WHERE save_id = ? ORDER BY id').all(saveId) as
-    { id: number; building_type: string; x: number; y: number; level: number }[];
-  return rows.filter(r => r.building_type in BUILDINGS).map(r => ({ id: r.id, type: r.building_type as BuildingType, x: r.x, y: r.y, level: r.level }));
+  const rows = db.prepare('SELECT id, building_type, x, y, level, bau_ende, arbeiter FROM buildings WHERE save_id = ? ORDER BY id').all(saveId) as
+    { id: number; building_type: string; x: number; y: number; level: number; bau_ende: number; arbeiter: number }[];
+  return rows.filter(r => r.building_type in BUILDINGS).map(r => ({
+    id: r.id, type: r.building_type as BuildingType, x: r.x, y: r.y, level: r.level, bauEnde: r.bau_ende, arbeiter: r.arbeiter
+  }));
+}
+
+// ===== Land =====
+export function readParzellen(db: DB, saveId: number): Parzelle[] {
+  return db.prepare('SELECT px, py FROM plots WHERE save_id = ? ORDER BY px, py').all(saveId) as Parzelle[];
+}
+export function besitzSet(db: DB, saveId: number): Set<string> {
+  return new Set(readParzellen(db, saveId).map(parzellenSchluessel));
+}
+export function industrieFrei(db: DB, saveId: number): boolean {
+  return readParzellen(db, saveId).some(p => gebietVon(p.px, p.py) === 'industrie');
 }
 
 export function readNodes(db: DB, saveId: number): MapNode[] {
@@ -59,9 +75,9 @@ export function readNodes(db: DB, saveId: number): MapNode[] {
 }
 
 // Rohstoffe dazulegen – aber nur so viel, wie ins Lager passt. Gibt zurück, was wirklich dazukam.
-export function gutschreiben(db: DB, saveId: number, menge: Amounts): Amounts {
+export function gutschreiben(db: DB, saveId: number, menge: Amounts, zeit: number): Amounts {
   const stock = readStock(db, saveId);
-  const cap = stadtWerte(db, saveId).capacity;
+  const cap = stadtWerte(db, saveId, zeit).capacity;
   const gained: Amounts = {};
   for (const r of Object.keys(menge) as (keyof Stock)[]) {
     const dazu = menge[r] ?? 0;
@@ -87,9 +103,9 @@ export function readForschung(db: DB, saveId: number): ForschungsStand {
   return { fertig: readResearch(db, saveId), aktiv, endetAm: aktiv ? save.research_ends_at : 0 };
 }
 
-// Die Werte der Stadt – mit allen fertigen Forschungen
-export function stadtWerte(db: DB, saveId: number): CityStats {
-  return cityStats(readBuildings(db, saveId), readResearch(db, saveId));
+// Die Werte der Stadt zum Zeitpunkt "zeit" – mit allen fertigen Forschungen, Baustellen und Bauarbeitern
+export function stadtWerte(db: DB, saveId: number, zeit: number): CityStats {
+  return cityStats(readBuildings(db, saveId), readResearch(db, saveId), { zeit, bauarbeiter: readSave(db, saveId).bauarbeiter });
 }
 
 // ===== Aufgaben =====
@@ -120,6 +136,8 @@ export function createSave(db: DB, cityName: string, now: number): number {
   const saveId = Number(info.lastInsertRowid);
   writeStock(db, saveId, { ...START_RESOURCES });
   db.prepare('INSERT INTO buildings (save_id, building_type, x, y, level) VALUES (?, ?, ?, ?, 1)').run(saveId, 'townhall', TOWNHALL_POS.x, TOWNHALL_POS.y);
+  for (const p of START_PARZELLEN) db.prepare('INSERT INTO plots (save_id, px, py) VALUES (?, ?, ?)').run(saveId, p.px, p.py);
+  db.prepare('UPDATE game_saves SET last_regrow_at = ? WHERE id = ?').run(now, saveId);
   const addNode = db.prepare('INSERT INTO nodes (save_id, node_type, x, y, hits_left) VALUES (?, ?, ?, ?, ?)');
   for (const n of generateNodes(seed)) addNode.run(saveId, n.type, n.x, n.y, NODES[n.type].hits);
   return saveId;
@@ -132,34 +150,110 @@ export function deleteAllSaves(db: DB): void {
 // Die Produktion bis "now" nachrechnen und speichern.
 // Wird vor JEDER Aktion aufgerufen – so stimmen die Vorräte immer.
 //
-// Wird unterwegs eine Forschung fertig, rechnen wir in zwei Teilen:
-// bis zum Ende der Forschung ohne Bonus, danach mit Bonus.
+// Unterwegs ändert sich die Stadt: Eine Forschung wird fertig, eine Baustelle wird fertig …
+// Darum rechnen wir in Abschnitten: von einem solchen Zeitpunkt zum nächsten, jedes Mal mit den
+// Werten, die in diesem Abschnitt gelten.
 export function settle(db: DB, saveId: number, now: number): OfflineReport {
   const save = readSave(db, saveId);
   const buildings = readBuildings(db, saveId);
   const fertig = readResearch(db, saveId);
   const vorher = readStock(db, saveId);
-  const sekunden = Math.min(Math.max(0, (now - save.last_calculated_at) / 1000), OFFLINE_LIMIT_SECONDS);
-  const ende = save.last_calculated_at + sekunden * 1000; // bis hierhin wird gerechnet
-  let nachher = vorher;
-  let zeit = save.last_calculated_at;
+  const start = save.last_calculated_at;
+  const sekunden = Math.min(Math.max(0, (now - start) / 1000), OFFLINE_LIMIT_SECONDS);
+  const ende = start + sekunden * 1000; // bis hierhin wird gerechnet
+  const forschung = isResearchId(save.research_active) && save.research_ends_at <= now ? save.research_active : null;
 
-  if (save.research_active && save.research_ends_at <= now) {
-    // Teil 1: bis die Forschung fertig ist
-    const fertigAm = Math.max(zeit, Math.min(save.research_ends_at, ende));
-    nachher = produce(nachher, cityStats(buildings, fertig), (fertigAm - zeit) / 1000);
-    zeit = fertigAm;
-    if (isResearchId(save.research_active)) {
-      db.prepare('INSERT OR IGNORE INTO research (save_id, research_id) VALUES (?, ?)').run(saveId, save.research_active);
-      fertig.push(save.research_active);
-    }
+  // Alle Zeitpunkte, an denen sich etwas ändert
+  const punkte = new Set<number>([ende]);
+  if (forschung) punkte.add(Math.max(start, Math.min(save.research_ends_at, ende)));
+  for (const b of buildings) if ((b.bauEnde ?? 0) > start && (b.bauEnde ?? 0) < ende) punkte.add(b.bauEnde!);
+
+  let nachher = vorher;
+  let zeit = start;
+  for (const t of [...punkte].sort((a, b) => a - b)) {
+    if (t <= zeit) continue;
+    const jetztFertig = forschung && save.research_ends_at <= zeit ? [...fertig, forschung] : fertig;
+    nachher = produce(nachher, cityStats(buildings, jetztFertig, { zeit, bauarbeiter: save.bauarbeiter }), (t - zeit) / 1000);
+    zeit = t;
+  }
+  writeStock(db, saveId, nachher);
+  if (forschung) {
+    db.prepare('INSERT OR IGNORE INTO research (save_id, research_id) VALUES (?, ?)').run(saveId, forschung);
     db.prepare('UPDATE game_saves SET research_active = NULL, research_ends_at = 0 WHERE id = ?').run(saveId);
   }
-  // Teil 2: der Rest (mit allen fertigen Forschungen)
-  nachher = produce(nachher, cityStats(buildings, fertig), (ende - zeit) / 1000);
-  writeStock(db, saveId, nachher);
-  db.prepare('UPDATE game_saves SET last_calculated_at = ? WHERE id = ?').run(Math.max(now, save.last_calculated_at), saveId);
-  return { seconds: Math.round(sekunden), gained: gainedBetween(vorher, nachher) };
+  db.prepare('UPDATE game_saves SET last_calculated_at = ? WHERE id = ?').run(Math.max(now, start), saveId);
+
+  lieferungenAuspacken(db, saveId, now);
+  natureWaechst(db, saveId, now);
+  return { seconds: Math.round(sekunden), gained: gainedBetween(vorher, readStock(db, saveId)) };
+}
+
+// ===== Natur wächst nach =====
+// Alle 30 Sekunden wächst ein Baum (alle 90 ein Felsen) auf einem freien Feld deiner Stadt –
+// bis es wieder genug gibt. So gehen dir nie die Bäume aus.
+function natureWaechst(db: DB, saveId: number, now: number): void {
+  const save = readSave(db, saveId);
+  const seit = save.last_regrow_at || now - 5 * 60_000; // alter Spielstand: gleich ein paar Bäume schenken
+  const stadt = readParzellen(db, saveId).filter(p => gebietVon(p.px, p.py) === 'stadt');
+  const nodes = readNodes(db, saveId);
+  const max = { tree: NACHWACHSEN.baeumeProParzelle * stadt.length, rock: NACHWACHSEN.felsenProParzelle * stadt.length };
+
+  const belegt = new Set<string>([...readBuildings(db, saveId), ...nodes].map(f => `${f.x},${f.y}`));
+  const freie: { x: number; y: number }[] = [];
+  for (const p of stadt) for (let y = p.py * PARZELLE; y < (p.py + 1) * PARZELLE; y++) for (let x = p.px * PARZELLE; x < (p.px + 1) * PARZELLE; x++) {
+    const nahRathaus = Math.max(Math.abs(x - TOWNHALL_POS.x), Math.abs(y - TOWNHALL_POS.y)) <= 2;
+    if (!nahRathaus && !belegt.has(`${x},${y}`)) freie.push({ x, y });
+  }
+  const neu = db.prepare('INSERT INTO nodes (save_id, node_type, x, y, hits_left) VALUES (?, ?, ?, ?, ?)');
+  // Feste Takte (alle 30 Sekunden seit 1970): so zählt jeder Takt genau einmal, egal wie oft abgeglichen wird
+  const takt = NACHWACHSEN.baumAlleSekunden * 1000;
+  const jederWievielte = Math.round(NACHWACHSEN.felsAlleSekunden / NACHWACHSEN.baumAlleSekunden);
+  const anzahl = { tree: nodes.filter(n => n.type === 'tree').length, rock: nodes.filter(n => n.type === 'rock').length };
+  const bis = Math.floor(now / takt);
+  for (let n = Math.max(Math.floor(seit / takt) + 1, bis - 200); n <= bis; n++) {
+    const arten: ('tree' | 'rock')[] = n % jederWievielte === 0 ? ['tree', 'rock'] : ['tree'];
+    for (const typ of arten) {
+      if (anzahl[typ] >= max[typ]) continue;
+      const platz = nachwachsPlatz(freie, Math.random);
+      if (!platz) break;
+      freie.splice(freie.indexOf(platz), 1);
+      neu.run(saveId, typ, platz.x, platz.y, NODES[typ].hits);
+      anzahl[typ]++;
+    }
+  }
+  db.prepare('UPDATE game_saves SET last_regrow_at = ? WHERE id = ?').run(now, saveId);
+}
+
+// ===== PC-Shop: angekommene Lieferungen auspacken =====
+export function readBestellungen(db: DB, saveId: number): Bestellung[] {
+  const rows = db.prepare('SELECT id, posten, bestellt_am, ankunft FROM shop_orders WHERE save_id = ? AND geliefert = 0 ORDER BY ankunft').all(saveId) as
+    { id: number; posten: string; bestellt_am: number; ankunft: number }[];
+  return rows.map(r => ({ id: r.id, posten: JSON.parse(r.posten), bestelltAm: r.bestellt_am, ankunft: r.ankunft }));
+}
+
+export function readBausaetze(db: DB, saveId: number): Partial<Record<BuildingType, number>> {
+  const rows = db.prepare('SELECT building_type, anzahl FROM bausaetze WHERE save_id = ? AND anzahl > 0').all(saveId) as { building_type: string; anzahl: number }[];
+  const b: Partial<Record<BuildingType, number>> = {};
+  for (const r of rows) if (isBuildingType(r.building_type)) b[r.building_type] = r.anzahl;
+  return b;
+}
+
+function lieferungenAuspacken(db: DB, saveId: number, now: number): void {
+  for (const b of readBestellungen(db, saveId)) {
+    if (b.ankunft > now) continue;
+    const ware: Amounts = {};
+    for (const [id, anzahl] of Object.entries(b.posten) as [ShopId, number][]) {
+      if (!isShopId(id)) continue;
+      const a = SHOP[id];
+      for (const [r, m] of Object.entries(a.inhalt ?? {}) as [keyof Stock, number][]) ware[r] = (ware[r] ?? 0) + m * anzahl;
+      if (a.bausatz) {
+        db.prepare(`INSERT INTO bausaetze (save_id, building_type, anzahl) VALUES (?, ?, ?)
+          ON CONFLICT (save_id, building_type) DO UPDATE SET anzahl = anzahl + excluded.anzahl`).run(saveId, a.bausatz, bausatzMenge(id) * anzahl);
+      }
+    }
+    gutschreiben(db, saveId, ware, now);
+    db.prepare('UPDATE shop_orders SET geliefert = 1 WHERE id = ?').run(b.id);
+  }
 }
 
 // Erfahrung dazuzählen – vielleicht gibt es ein neues Level
@@ -178,15 +272,20 @@ export function loadState(db: DB, saveId: number, now: number): GameState {
   const save = readSave(db, saveId);
   const buildings = readBuildings(db, saveId);
   const forschung = readForschung(db, saveId);
+  const parzellen = readParzellen(db, saveId);
+  const bestellt = (db.prepare('SELECT COUNT(*) AS n FROM shop_orders WHERE save_id = ?').get(saveId) as { n: number }).n;
   return {
     save: { id: save.id, cityName: save.city_name, level: save.level, experience: save.experience, lastCalculatedAt: save.last_calculated_at },
     resources: readStock(db, saveId),
     buildings,
     nodes: readNodes(db, saveId),
-    stats: cityStats(buildings, forschung.fertig),
+    stats: cityStats(buildings, forschung.fertig, { zeit: now, bauarbeiter: save.bauarbeiter }),
     forschung,
     aufgabe: readAufgabe(db, saveId),
-    blackjack: blackjackSicht(db, saveId),
+    blackjack: blackjackStand(db, saveId),
+    land: { parzellen, industrie: parzellen.some(p => gebietVon(p.px, p.py) === 'industrie') },
+    personal: { bauarbeiter: save.bauarbeiter },
+    shop: { bestellungen: readBestellungen(db, saveId), bausaetze: readBausaetze(db, saveId), bestellt },
     serverTime: now
   };
 }

@@ -50,7 +50,11 @@ Selbst bauen: `npm run build:pages` → fertige Seite in `client/dist`.
 - **Zoomen:** Mausrad oder zwei Finger
 - **Baum fällen / Felsen abbauen:** hingehen und auf den gelben Knopf tippen (oder **E**)
 - **Bauen:** 🏗️ Bauen → Gebäude wählen → auf einen freien Platz tippen → ✓ Bauen
-- **Gebäude verbessern oder abreissen:** Gebäude antippen
+- **Gebäude verbessern, Arbeiter anstellen oder abreissen:** Gebäude antippen
+- **Beim Bauen mithelfen:** zur Baustelle laufen und auf 🔨 tippen (oder **E**)
+- **Land kaufen:** auf ein Schild „Zu verkaufen“ am Stadtrand tippen – oder 💻 PC → Land
+- **Einkaufen, Bauarbeiter anstellen:** 💻 PC (unten rechts, oder im Rathaus)
+- **Blackjack:** Spielhalle bauen und antippen
 
 ## So ist das Projekt aufgebaut
 
@@ -60,6 +64,9 @@ shared/   Spielregeln, die Server UND Browser benutzen
   src/resources.ts   alle Rohstoffe
   src/research.ts    alle Forschungen (Kosten, Dauer, Wirkung)
   src/quests.ts      Gretas Aufgaben, der Reihe nach
+  src/land.ts        Parzellen, Land kaufen, Industrie-Gebiet freischalten
+  src/shop.ts        Artikel im PC-Shop, Lieferzeiten
+  src/blackjack.ts   Blackjack-Regeln (Teilen, Verdoppeln, Statistik)
   src/rules.ts       Formeln: Verbesserungskosten, Lager, Einwohner, Strassen-Anschluss, Erfahrung
   src/production.ts  Produktionsketten in kleinen Zeitschritten (nie über die Lagergrenze)
 server/   Node.js + Express + SQLite – entscheidet, was erlaubt ist
@@ -117,9 +124,15 @@ und wachsen mit dem Level. Die Farben werden in `client/src/scene/modelle.tsx` a
 - [x] **Aufgaben:** 15 Aufgaben von Greta vor dem Rathaus, mit Belohnungen
 - [x] **🃏 Spielhalle mit Blackjack** (ab Level 2): Einsatz in Gold oder Rohstoffen, gegen die Bank.
   Die Karten mischt der Server (`shared/src/blackjack.ts`, `server/src/services/blackjackService.ts`) – schummeln geht nicht.
-- [ ] Häuser wachsen zu Mehrfamilienhäusern und Wohnblöcken
-- [ ] Fläche erweitern, neues Gebiet „Industrie“ mit Fabriken und Firmen
-- [ ] Einwohner anstellen (Arbeiter, Bauarbeiter), selbst bauen mit Brettern
-- [ ] PC mit Shop: Warenkorb, bestellen, Lieferung
+- [x] **Bäume und Felsen wachsen nach** (alle 30 Sekunden ein Baum, bis die Stadt wieder genug hat)
+- [x] **Blackjack:** Teilen bei zwei gleichen Karten, Statistik am Tisch (📊), Greta-Aufgabe „Glück im Spiel“
+- [x] **Häuser wachsen:** Wohnhaus → Mehrfamilienhaus (ab Level 5, braucht Bretter) → Wohnblock (ab Level 8, braucht Maschinen)
+- [x] **Bauzeit:** Gebäude stehen nicht sofort. Der Bürgermeister kann mithelfen (🔨), Bauarbeiter machen es schneller
+- [x] **Personal:** Arbeiter in Gebäuden (+25 % je Arbeiter, Lohn 1 🪙/Min.), bis zu 5 Bauarbeiter
+- [x] **Land kaufen:** Parzellen von 8 × 8 Feldern rund um die Stadt
+- [x] **Industrie:** eigenes Gebiet rechts neben der Stadt (ab Level 6, 60 Einwohner, Sägewerk + Bäckerei).
+  Erzmine → Stahlwerk → Maschinenfabrik, Möbelfirma und Handelsfirma (bringt viel Gold)
+- [x] **💻 PC:** Online-Shop mit Warenkorb (Material, Nahrung, Fertig-Bausätze), Lieferwagen fährt zum Rathaus,
+  dazu Personal und Land
 - [ ] Neue Gebiete, Zeitalter, Handel und Monumente
 - [ ] Veröffentlichen (Hosting, Backups, Benutzerkonten)

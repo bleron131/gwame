@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BUILDINGS, OFFLINE_LIMIT_SECONDS, RESEARCH, produce,
-  type BuildingType, type GameResponse, type GameState, type OfflineReport, type ResearchId, type ResourceId, type Stock
+  type BuildingType, type GameResponse, type GameState, type OfflineReport, type ResearchId, type ResourceId, type ShopId, type Stock
 } from '@empire/shared';
 import { ApiError, api, type BlackjackZug } from '../api/client';
+import { uhr } from './effects';
 
 export type Status = 'laden' | 'keinSpiel' | 'bereit' | 'fehler';
 export interface Meldung { id: number; text: string; art: 'info' | 'fehler' | 'erfolg' }
@@ -32,7 +33,19 @@ export function useGame() {
     if (vorher && r.state.forschung.fertig.includes(vorher)) {
       melden(`🔬 Forschung fertig: ${RESEARCH[vorher].icon} ${RESEARCH[vorher].name}`, 'erfolg');
     }
+    // Fertige Baustellen und angekommene Lieferungen melden
+    const alt = stateRef.current;
+    if (alt) {
+      for (const b of r.state.buildings) {
+        const vorher = alt.buildings.find(x => x.id === b.id);
+        if (vorher && (vorher.bauEnde ?? 0) > alt.serverTime && (b.bauEnde ?? 0) <= r.state.serverTime) {
+          melden(`🏗️ Fertig gebaut: ${BUILDINGS[b.type].icon} ${BUILDINGS[b.type].name}${b.level > 1 ? ` (Level ${b.level})` : ''}`, 'erfolg');
+        }
+      }
+      if (r.state.shop.bestellungen.length < alt.shop.bestellungen.length) melden('📦 Deine Lieferung ist angekommen!', 'erfolg');
+    }
     zeitVersatz.current = r.state.serverTime - Date.now();
+    uhr.versatz = zeitVersatz.current;
     stateRef.current = r.state;
     setState(r.state);
     setStatus('bereit');
@@ -65,13 +78,22 @@ export function useGame() {
   }, [laden]);
 
   // Wenn die laufende Forschung fertig ist, sofort neu laden (nicht erst beim nächsten Abgleich)
-  const forschungEnde = state?.forschung.aktiv ? state.forschung.endetAm : 0;
+  // Dasselbe für die nächste fertige Baustelle und den nächsten Lieferwagen
+  const naechstesEreignis = useMemo(() => {
+    if (!state) return 0;
+    const zeiten = [
+      state.forschung.aktiv ? state.forschung.endetAm : 0,
+      ...state.buildings.map(b => b.bauEnde ?? 0),
+      ...state.shop.bestellungen.map(b => b.ankunft)
+    ].filter(t => t > state.serverTime);
+    return zeiten.length ? Math.min(...zeiten) : 0;
+  }, [state]);
   useEffect(() => {
-    if (!forschungEnde) return;
-    const warten = forschungEnde - (Date.now() + zeitVersatz.current) + 300;
+    if (!naechstesEreignis) return;
+    const warten = naechstesEreignis - (Date.now() + zeitVersatz.current) + 300;
     const t = setTimeout(() => laden(false), Math.max(300, warten));
     return () => clearTimeout(t);
-  }, [forschungEnde, laden]);
+  }, [naechstesEreignis, laden]);
 
   // Eine Aktion ausführen; Fehler werden als Meldung angezeigt
   const ausfuehren = useCallback(async (f: () => Promise<GameResponse>, leiseCodes: string[] = []) => {
@@ -87,7 +109,13 @@ export function useGame() {
 
   const aktionen = useMemo(() => ({
     neueStadt: (name: string, ersetzen = false) => ausfuehren(() => api.neueStadt(name, ersetzen)),
-    bauen: (type: BuildingType, x: number, y: number) => ausfuehren(() => api.bauen(type, x, y)),
+    bauen: (type: BuildingType, x: number, y: number, bausatz = false) => ausfuehren(() => api.bauen(type, x, y, bausatz)),
+    mitbauen: (id: number) => ausfuehren(() => api.mitbauen(id), ['TOO_FAST']),
+    arbeiter: (id: number, mehr: boolean) => ausfuehren(() => api.arbeiter(id, mehr)),
+    bauarbeiter: (mehr: boolean) => ausfuehren(() => api.bauarbeiter(mehr)),
+    landKaufen: (px: number, py: number) => ausfuehren(() => api.landKaufen(px, py)),
+    industrie: () => ausfuehren(() => api.industrie()),
+    bestellen: (posten: Partial<Record<ShopId, number>>) => ausfuehren(() => api.bestellen(posten)),
     verbessern: (id: number) => ausfuehren(() => api.verbessern(id)),
     abreissen: (id: number) => ausfuehren(() => api.abreissen(id)),
     abbauen: (nodeId: number) => ausfuehren(() => api.abbauen(nodeId), ['TOO_FAST']),

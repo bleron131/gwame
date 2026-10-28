@@ -18,7 +18,7 @@ export function harvest(db: DB, saveId: number, nodeId: unknown, now: number): G
   if (ertrag.wood) ertrag.wood += extraHolz;
 
   const stock = readStock(db, saveId);
-  const cap = stadtWerte(db, saveId).capacity;
+  const cap = stadtWerte(db, saveId, now).capacity;
   const gained: Amounts = {};
   for (const r of RESOURCE_IDS) {
     const menge = ertrag[r] ?? 0;

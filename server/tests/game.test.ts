@@ -29,6 +29,9 @@ function freiesFeld(state: GameState, ausser: { x: number; y: number }[] = []) {
   throw new Error('kein freies Feld');
 }
 
+// Alle Baustellen sofort fertig (für Tests, in denen es nur um die Produktion geht)
+const fertigBauen = (d: DB) => d.prepare('UPDATE buildings SET bau_ende = 0').run();
+
 // sql.js = SQLite im Browser (für die GitHub-Pages-Version)
 let SQL: SqlJsStatic;
 beforeAll(async () => { SQL = await initSqlJs(); });
@@ -58,7 +61,7 @@ afterEach(() => db.close());
     let d = openDb(datei);
     const id = createSave(d, 'Speicherstadt', jetzt);
     const feld = freiesFeld(loadState(d, id, jetzt));
-    runAction(d, id, undefined, jetzt, () => build(d, id, 'lumberjack', feld.x, feld.y));
+    runAction(d, id, undefined, jetzt, () => build(d, id, 'lumberjack', feld.x, feld.y, jetzt));
     const vorher = loadState(d, id, jetzt);
     d.close();
 
@@ -74,7 +77,7 @@ afterEach(() => db.close());
   it('Zu wenig Gold: Bau wird abgelehnt und nichts wird abgezogen', () => {
     writeStock(db, saveId, { gold: 10, wood: 500, stone: 500 });
     const feld = freiesFeld(loadState(db, saveId, jetzt));
-    expect(() => runAction(db, saveId, undefined, jetzt, () => build(db, saveId, 'lumberjack', feld.x, feld.y)))
+    expect(() => runAction(db, saveId, undefined, jetzt, () => build(db, saveId, 'lumberjack', feld.x, feld.y, jetzt)))
       .toThrowError(/Gold/);
     const state = loadState(db, saveId, jetzt);
     expect(state.resources.gold).toBe(10);
@@ -84,15 +87,16 @@ afterEach(() => db.close());
 
   it('Gleicher Bauplatz: das zweite Gebäude wird abgelehnt', () => {
     const feld = freiesFeld(loadState(db, saveId, jetzt));
-    runAction(db, saveId, undefined, jetzt, () => build(db, saveId, 'lumberjack', feld.x, feld.y));
-    expect(() => runAction(db, saveId, undefined, jetzt, () => build(db, saveId, 'lumberjack', feld.x, feld.y)))
+    runAction(db, saveId, undefined, jetzt, () => build(db, saveId, 'lumberjack', feld.x, feld.y, jetzt));
+    expect(() => runAction(db, saveId, undefined, jetzt, () => build(db, saveId, 'lumberjack', feld.x, feld.y, jetzt)))
       .toThrowError(GameError);
     expect(loadState(db, saveId, jetzt).buildings).toHaveLength(2);
   });
 
   it('Offline-Produktion wird korrekt nachberechnet', () => {
     const feld = freiesFeld(loadState(db, saveId, jetzt));
-    runAction(db, saveId, undefined, jetzt, () => build(db, saveId, 'lumberjack', feld.x, feld.y));
+    runAction(db, saveId, undefined, jetzt, () => build(db, saveId, 'lumberjack', feld.x, feld.y, jetzt));
+    fertigBauen(db);
     const vorher = readStock(db, saveId);
     jetzt += 10 * 60 * 1000; // 10 Minuten weg
     settle(db, saveId, jetzt);
@@ -110,7 +114,7 @@ afterEach(() => db.close());
 
   it('Lager voll: keine Ressource überschreitet die Lagergrenze', () => {
     const feld = freiesFeld(loadState(db, saveId, jetzt));
-    runAction(db, saveId, undefined, jetzt, () => build(db, saveId, 'lumberjack', feld.x, feld.y));
+    runAction(db, saveId, undefined, jetzt, () => build(db, saveId, 'lumberjack', feld.x, feld.y, jetzt));
     jetzt += 5 * 3600 * 1000;
     settle(db, saveId, jetzt);
     const state = loadState(db, saveId, jetzt);
@@ -120,11 +124,12 @@ afterEach(() => db.close());
   it('Gebäude verbessern: Kosten werden abgezogen und das Level steigt', () => {
     writeStock(db, saveId, { gold: 1000, wood: 200, stone: 0 });
     const feld = freiesFeld(loadState(db, saveId, jetzt));
-    const r = runAction(db, saveId, undefined, jetzt, () => build(db, saveId, 'lumberjack', feld.x, feld.y));
+    const r = runAction(db, saveId, undefined, jetzt, () => build(db, saveId, 'lumberjack', feld.x, feld.y, jetzt));
+    fertigBauen(db);
     const holzfaeller = r.state.buildings.find(b => b.type === 'lumberjack')!;
     const kosten = upgradeCost('lumberjack', 1);
     expect(kosten).toEqual({ gold: 80, wood: 16 });
-    const nachher = runAction(db, saveId, undefined, jetzt, () => upgrade(db, saveId, holzfaeller.id));
+    const nachher = runAction(db, saveId, undefined, jetzt, () => upgrade(db, saveId, holzfaeller.id, jetzt));
     expect(nachher.state.buildings.find(b => b.id === holzfaeller.id)!.level).toBe(2);
     expect(nachher.state.resources.gold).toBe(1000 - 50 - 80);
     expect(nachher.state.resources.wood).toBe(200 - 10 - 16);
@@ -133,8 +138,8 @@ afterEach(() => db.close());
   it('Doppelte Anfrage: dieselbe Aktion wird nur einmal ausgeführt', () => {
     writeStock(db, saveId, { gold: 1000, wood: 200, stone: 0 });
     const feld = freiesFeld(loadState(db, saveId, jetzt));
-    const erste = runAction(db, saveId, 'klick-123', jetzt, () => build(db, saveId, 'lumberjack', feld.x, feld.y));
-    const zweite = runAction(db, saveId, 'klick-123', jetzt, () => build(db, saveId, 'lumberjack', feld.x, feld.y));
+    const erste = runAction(db, saveId, 'klick-123', jetzt, () => build(db, saveId, 'lumberjack', feld.x, feld.y, jetzt));
+    const zweite = runAction(db, saveId, 'klick-123', jetzt, () => build(db, saveId, 'lumberjack', feld.x, feld.y, jetzt));
     expect(zweite).toEqual(erste);
     expect(loadState(db, saveId, jetzt).resources.gold).toBe(950);
   });
@@ -172,7 +177,7 @@ describe('Empire Builder – Browser-Speicher', () => {
     datenbankEinrichten(d, SCHEMA);
     const id = createSave(d, 'Browserstadt', jetzt);
     const feld = freiesFeld(loadState(d, id, jetzt));
-    runAction(d, id, undefined, jetzt, () => build(d, id, 'house', feld.x, feld.y));
+    runAction(d, id, undefined, jetzt, () => build(d, id, 'house', feld.x, feld.y, jetzt));
     const vorher = loadState(d, id, jetzt);
     const bytes = roh.export();     // so speichert der Browser die Datenbank
     d.close();

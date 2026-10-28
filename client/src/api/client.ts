@@ -1,4 +1,4 @@
-import type { ApiErrorBody, BuildingType, GameResponse, ResearchId, ResourceId } from '@empire/shared';
+import type { ApiErrorBody, BuildingType, GameResponse, ResearchId, ResourceId, ShopId } from '@empire/shared';
 
 // Ein Fehler vom Server, mit verständlicher Meldung
 export class ApiError extends Error {
@@ -32,10 +32,16 @@ async function anfrage<T>(method: 'GET' | 'POST' | 'DELETE', pfad: string, body?
 }
 
 // Alle Aktionen, die der Browser beim Server auslösen kann
-const serverApi = {
+export const serverApi = {
   laden: (willkommen: boolean) => anfrage<GameResponse>('GET', willkommen ? '/game?welcome=1' : '/game'),
   neueStadt: (cityName: string, replace = false) => anfrage<GameResponse>('POST', '/game/new', { cityName, replace }),
-  bauen: (type: BuildingType, x: number, y: number) => anfrage<GameResponse>('POST', '/buildings', { type, x, y }),
+  bauen: (type: BuildingType, x: number, y: number, bausatz = false) => anfrage<GameResponse>('POST', '/buildings', { type, x, y, bausatz }),
+  mitbauen: (id: number) => anfrage<GameResponse>('POST', `/buildings/${id}/hammer`),
+  arbeiter: (id: number, mehr: boolean) => anfrage<GameResponse>('POST', `/buildings/${id}/workers`, { mehr }),
+  bauarbeiter: (mehr: boolean) => anfrage<GameResponse>('POST', '/builders', { mehr }),
+  landKaufen: (px: number, py: number) => anfrage<GameResponse>('POST', '/land', { px, py }),
+  industrie: () => anfrage<GameResponse>('POST', '/land/industrie'),
+  bestellen: (posten: Partial<Record<ShopId, number>>) => anfrage<GameResponse>('POST', '/shop/orders', { posten }),
   verbessern: (id: number) => anfrage<GameResponse>('POST', `/buildings/${id}/upgrade`),
   abreissen: (id: number) => anfrage<GameResponse>('DELETE', `/buildings/${id}`),
   abbauen: (nodeId: number) => anfrage<GameResponse>('POST', `/nodes/${nodeId}/harvest`),
@@ -45,24 +51,20 @@ const serverApi = {
   blackjackZug: (zug: BlackjackZug) => anfrage<GameResponse>('POST', `/blackjack/${zug}`)
 };
 
-export type BlackjackZug = 'ziehen' | 'halten' | 'verdoppeln';
+export type BlackjackZug = 'ziehen' | 'halten' | 'verdoppeln' | 'teilen';
 
 // GitHub-Pages-Version: Datenbank und Spielregeln laufen im Browser (wird erst bei Bedarf geladen)
 export const IM_BROWSER = import.meta.env.VITE_SPEICHER === 'browser';
 let lokal: Promise<typeof import('./browserServer')> | null = null;
 const browser = () => (lokal ??= import('./browserServer'));
 
-export const api: typeof serverApi = IM_BROWSER
-  ? {
-      laden: async w => (await browser()).browserApi.laden(w),
-      neueStadt: async (n, r) => (await browser()).browserApi.neueStadt(n, r),
-      bauen: async (t, x, y) => (await browser()).browserApi.bauen(t, x, y),
-      verbessern: async i => (await browser()).browserApi.verbessern(i),
-      abreissen: async i => (await browser()).browserApi.abreissen(i),
-      abbauen: async i => (await browser()).browserApi.abbauen(i),
-      forschen: async i => (await browser()).browserApi.forschen(i),
-      abholen: async i => (await browser()).browserApi.abholen(i),
-      blackjack: async (r, m) => (await browser()).browserApi.blackjack(r, m),
-      blackjackZug: async z => (await browser()).browserApi.blackjackZug(z)
-    }
-  : serverApi;
+// Jede Funktion von serverApi bekommt im Browser ihr Gegenstück aus browserServer.ts
+type Api = typeof serverApi;
+const browserVersion = new Proxy({} as Api, {
+  get: (_, name: string) => async (...args: unknown[]) => {
+    const f = (await browser()).browserApi[name as keyof Api] as (...a: unknown[]) => Promise<GameResponse>;
+    return f(...args);
+  }
+});
+
+export const api: Api = IM_BROWSER ? browserVersion : serverApi;

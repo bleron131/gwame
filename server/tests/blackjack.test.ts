@@ -34,10 +34,11 @@ describe('Blackjack – am Tisch', () => {
   let db: DB, id: number;
   const jetzt = 1_700_000_000_000;
   // Eine bestimmte Runde hinlegen (der Stapel wird von hinten gezogen)
-  const runde = (spieler: Karte[], bank: Karte[], stapel: Karte[], einsatz = 50) =>
+  const legen = (spieler: Karte[], bank: Karte[], stapel: Karte[], einsatz = 50) =>
     db.prepare('INSERT OR REPLACE INTO blackjack_games (save_id, data) VALUES (?, ?)').run(id, JSON.stringify({
       rohstoff: 'gold', einsatz, spieler, bank, stapel, laeuft: true, verdoppelt: false, ergebnis: null, ausgezahlt: 0
     }));
+  const runde = () => loadState(db, id, jetzt).blackjack.runde!;
   const tun = (f: () => unknown) => runAction(db, id, undefined, jetzt, () => { f(); });
 
   beforeEach(() => {
@@ -48,16 +49,16 @@ describe('Blackjack – am Tisch', () => {
   afterEach(() => db.close());
 
   it('ohne Spielhalle geht es nicht, und der Höchsteinsatz gilt', () => {
-    expect(() => tun(() => blackjackStarten(db, id, 'gold', 50))).toThrow(/Spielhalle/);
+    expect(() => tun(() => blackjackStarten(db, id, 'gold', 50, jetzt))).toThrow(/Spielhalle/);
     db.prepare("INSERT INTO buildings (save_id, building_type, x, y, level) VALUES (?, 'casino', 0, 0, 1)").run(id);
-    expect(() => tun(() => blackjackStarten(db, id, 'gold', 101))).toThrow(/Höchsteinsatz/);
-    expect(() => tun(() => blackjackStarten(db, id, 'wood', 31))).toThrow(/Höchsteinsatz/);
-    expect(() => tun(() => blackjackStarten(db, id, 'gold', 0))).toThrow(/mindestens 1/);
+    expect(() => tun(() => blackjackStarten(db, id, 'gold', 101, jetzt))).toThrow(/Höchsteinsatz/);
+    expect(() => tun(() => blackjackStarten(db, id, 'wood', 31, jetzt))).toThrow(/Höchsteinsatz/);
+    expect(() => tun(() => blackjackStarten(db, id, 'gold', 0, jetzt))).toThrow(/mindestens 1/);
     expect(readStock(db, id).gold).toBe(1000); // nichts abgezogen
     // Mit Holz setzen geht auch
-    tun(() => blackjackStarten(db, id, 'wood', 30, seededRandom(7)));
+    tun(() => blackjackStarten(db, id, 'wood', 30, jetzt, seededRandom(7)));
     expect(readStock(db, id).wood).toBeLessThanOrEqual(100);
-    expect(loadState(db, id, jetzt).blackjack?.rohstoff).toBe('wood');
+    expect(loadState(db, id, jetzt).blackjack.runde?.rohstoff).toBe('wood');
   });
 
   it('der Einsatz wird abgezogen und die Karte der Bank ist verdeckt', () => {
@@ -69,48 +70,48 @@ describe('Blackjack – am Tisch', () => {
       const sp = [s[s.length - 1], s[s.length - 3]], ba = [s[s.length - 2], s[s.length - 4]];
       if (handWert(sp).wert !== 21 && handWert(ba).wert !== 21) break;
     }
-    tun(() => blackjackStarten(db, id, 'gold', 50, seededRandom(samen)));
+    tun(() => blackjackStarten(db, id, 'gold', 50, jetzt, seededRandom(samen)));
     const st = loadState(db, id, jetzt);
     expect(st.resources.gold).toBe(950);
-    expect(st.blackjack?.laeuft).toBe(true);
-    expect(st.blackjack?.spieler).toHaveLength(2);
-    expect(st.blackjack?.bank[1]).toBeNull();
+    expect(st.blackjack.runde?.laeuft).toBe(true);
+    expect(st.blackjack.runde?.haende[0].karten).toHaveLength(2);
+    expect(st.blackjack.runde?.bank[1]).toBeNull();
     // Während eine Runde läuft, kann man keine neue starten
-    expect(() => tun(() => blackjackStarten(db, id, 'gold', 10))).toThrow(/laufende Runde/);
+    expect(() => tun(() => blackjackStarten(db, id, 'gold', 10, jetzt))).toThrow(/laufende Runde/);
   });
 
   it('Halten: die Bank zieht bis 17 – hier überkauft sie sich, du gewinnst doppelt', () => {
-    runde(k('10', '9'), k('10', '6'), k('K'));
-    tun(() => blackjackHalten(db, id));
-    const bj = loadState(db, id, jetzt).blackjack!;
-    expect(bj.ergebnis).toBe('gewonnen');
+    legen(k('10', '9'), k('10', '6'), k('K'));
+    tun(() => blackjackHalten(db, id, jetzt));
+    const bj = runde();
+    expect(bj.haende[0].ergebnis).toBe('gewonnen');
     expect(bj.bank).toEqual(k('10', '6', 'K'));
     expect(readStock(db, id).gold).toBe(1000 + 100);
   });
 
   it('Halten: die Bank kommt auf 21 – Einsatz verloren', () => {
-    runde(k('10', '7'), k('10', '6'), k('5'));
-    tun(() => blackjackHalten(db, id));
-    expect(loadState(db, id, jetzt).blackjack!.ergebnis).toBe('verloren');
+    legen(k('10', '7'), k('10', '6'), k('5'));
+    tun(() => blackjackHalten(db, id, jetzt));
+    expect(runde().haende[0].ergebnis).toBe('verloren');
     expect(readStock(db, id).gold).toBe(1000);
   });
 
   it('Ziehen: über 21 = sofort verloren, die Bank zieht nicht mehr', () => {
-    runde(k('10', '6'), k('10', '6'), k('5', 'K'));
-    tun(() => blackjackZiehen(db, id));
-    const bj = loadState(db, id, jetzt).blackjack!;
-    expect(bj.ergebnis).toBe('verloren');
+    legen(k('10', '6'), k('10', '6'), k('5', 'K'));
+    tun(() => blackjackZiehen(db, id, jetzt));
+    const bj = runde();
+    expect(bj.haende[0].ergebnis).toBe('verloren');
     expect(bj.bank).toHaveLength(2);
-    expect(() => tun(() => blackjackZiehen(db, id))).toThrow(/keine Runde/);
+    expect(() => tun(() => blackjackZiehen(db, id, jetzt))).toThrow(/keine Runde/);
   });
 
   it('Verdoppeln: doppelter Einsatz, eine Karte, dann die Bank', () => {
-    runde(k('5', '6'), k('10', '7'), k('K'));
-    tun(() => blackjackVerdoppeln(db, id));
-    const bj = loadState(db, id, jetzt).blackjack!;
-    expect(bj.einsatz).toBe(100);
-    expect(bj.spieler).toHaveLength(3);
-    expect(bj.ergebnis).toBe('gewonnen');
+    legen(k('5', '6'), k('10', '7'), k('K'));
+    tun(() => blackjackVerdoppeln(db, id, jetzt));
+    const bj = runde();
+    expect(bj.haende[0].einsatz).toBe(100);
+    expect(bj.haende[0].karten).toHaveLength(3);
+    expect(bj.haende[0].ergebnis).toBe('gewonnen');
     expect(readStock(db, id).gold).toBe(1000 - 50 + 200); // Einsatz 50 war schon weg, dann nochmal 50, Gewinn 200
   });
 
@@ -119,8 +120,8 @@ describe('Blackjack – am Tisch', () => {
       rohstoff: 'wood', einsatz: 30, spieler: k('10', '9'), bank: k('10', '6'), stapel: k('K'), laeuft: true, verdoppelt: false, ergebnis: null, ausgezahlt: 0
     }));
     writeStock(db, id, { wood: 290 }); // Lager: 300
-    tun(() => blackjackHalten(db, id));
+    tun(() => blackjackHalten(db, id, jetzt));
     expect(readStock(db, id).wood).toBe(300);
-    expect(loadState(db, id, jetzt).blackjack!.ausgezahlt).toBe(10);
+    expect(runde().haende[0].ausgezahlt).toBe(10);
   });
 });

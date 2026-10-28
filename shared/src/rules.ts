@@ -1,4 +1,4 @@
-import { BUILDINGS, type BuildingType } from './buildings';
+import { BUILDINGS, ausbaustufe, type BuildingType } from './buildings';
 import { RESEARCH, type ResearchId } from './research';
 import { RESOURCES, RESOURCE_IDS, emptyStock, type Amounts, type ResourceId, type Stock } from './resources';
 
@@ -18,22 +18,50 @@ export const DEMOLISH_REFUND = 0.5;        // beim Abreissen gibt es die Hälfte
 export const OFFLINE_LIMIT_SECONDS = 8 * 3600; // höchstens 8 Stunden werden nachgerechnet
 export const HARVEST_COOLDOWN_MS = 300;    // so schnell kann der Bürgermeister zuschlagen
 
+// ===== Personal =====
+export const ARBEITER_BONUS = 0.25;        // jeder Arbeiter: +25 % Produktion in seinem Gebäude
+export const LOHN_PRO_MINUTE = 1;          // jeder Angestellte bekommt 1 Gold pro Minute
+export const BAUARBEITER_BONUS = 0.3;      // jeder Bauarbeiter: Bauen geht 30 % schneller
+export const BAUARBEITER_LOHN = 2;
+export const MAX_BAUARBEITER = 5;
+export const HAMMER_SEKUNDEN = 2;          // so viel schneller ist der Bau, wenn der Bürgermeister mithilft
+// Einmalige Kosten fürs Anstellen (der n-te Arbeiter im Gebäude / der n-te Bauarbeiter, ab 0)
+export const arbeiterPreis = (n: number): Amounts => ({ gold: 60 * (n + 1) });
+export const bauarbeiterPreis = (n: number): Amounts => ({ gold: 150 * (n + 1), planks: 10 * n });
+
+// ===== Natur wächst nach =====
+export const NACHWACHSEN = {
+  baumAlleSekunden: 30,     // alle 30 Sekunden wächst ein Baum …
+  felsAlleSekunden: 90,     // … und alle 90 Sekunden ein Felsen
+  baeumeProParzelle: 4,     // bis höchstens so viele pro Stadt-Parzelle
+  felsenProParzelle: 2
+};
+
 // ===== Erfahrung =====
-export const XP = { build: 25, upgradePerLevel: 15, harvest: 2 };
+export const XP = { build: 25, upgradePerLevel: 15, harvest: 2, hammer: 1 };
 
 export interface PlacedBuilding {
   id: number;
   type: BuildingType;
   x: number;
   y: number;
-  level: number;
+  level: number;      // so weit wird gebaut (während des Baus: das Ziel-Level)
+  bauEnde?: number;   // Zeitpunkt (ms), an dem der Bau fertig ist (0 oder früher = fertig)
+  arbeiter?: number;  // angestellte Arbeiter
 }
+
+// Welches Level wirkt gerade? Während des Baus noch das alte (ein neues Gebäude: 0 = wirkt noch nicht)
+export function wirksamesLevel(b: PlacedBuilding, zeit: number): number {
+  return (b.bauEnde ?? 0) > zeit ? b.level - 1 : b.level;
+}
+export const imBau = (b: PlacedBuilding, zeit: number) => (b.bauEnde ?? 0) > zeit;
 
 export function inGrid(x: number, y: number): boolean {
   return Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < GRID_SIZE && y < GRID_SIZE;
 }
 
 // Was kostet der Schritt von "level" auf "level + 1"? (level 0 = neu bauen)
+// Ab einer neuen Ausbaustufe (z. B. Mehrfamilienhaus) kommen Zusatzkosten dazu (Bretter, Maschinen …).
 export function upgradeCost(type: BuildingType, level: number): Amounts {
   const base = BUILDINGS[type].cost;
   const factor = Math.pow(UPGRADE_FACTOR, level === 0 ? 0 : level);
@@ -42,7 +70,27 @@ export function upgradeCost(type: BuildingType, level: number): Amounts {
     const v = base[r];
     if (v) cost[r] = Math.ceil(v * factor);
   }
+  const stufe = ausbaustufe(type, level + 1);
+  if (stufe.extra && level > 0) {
+    const mehr = 1 + 0.5 * (level + 1 - stufe.ab);
+    for (const r of RESOURCE_IDS) if (stufe.extra[r]) cost[r] = (cost[r] ?? 0) + Math.ceil(stufe.extra[r]! * mehr);
+  }
   return cost;
+}
+
+// Wie viele Sekunden dauert der Bau auf "zielLevel"? Bauarbeiter machen es schneller.
+export function bauzeit(type: BuildingType, zielLevel: number, bauarbeiter = 0): number {
+  const basis = BUILDINGS[type].bauzeit;
+  if (basis <= 0) return 0;
+  return Math.round((basis * Math.pow(1.4, zielLevel - 1)) / (1 + BAUARBEITER_BONUS * bauarbeiter));
+}
+
+// Einwohner eines Gebäudes auf einem Level
+export function einwohner(type: BuildingType, level: number): number {
+  const def = BUILDINGS[type];
+  if (level <= 0) return 0;
+  if (def.einwohnerProLevel) return def.einwohnerProLevel[Math.min(level, def.einwohnerProLevel.length) - 1];
+  return (def.population ?? 0) * level;
 }
 
 // Was fehlt noch, um "cost" zu bezahlen?
@@ -118,7 +166,9 @@ export interface CityStats {
   capacity: Record<ResourceId, number | null>;   // Lagergrenze (null = unbegrenzt)
   population: number;
   produzenten: Produzent[];                      // in der Reihenfolge der Kette
-  steuerProMinute: number;                       // Grund-Steuern
+  steuerProMinute: number;                       // Grund-Steuern (minus Löhne)
+  loehneProMinute: number;                       // so viel Lohn bekommen die Angestellten
+  angestellte: number;                           // Arbeiter + Bauarbeiter
   sattBonusProMinute: number;                    // so viel zusätzlich, wenn alle Brot haben
   brotProMinute: number;                         // so viel Brot essen die Einwohner
   verbunden: number[];                           // IDs der Gebäude mit Strassen-Anschluss
@@ -130,7 +180,14 @@ function mal(a: Amounts | undefined, f: number): Amounts {
   return r;
 }
 
-export function cityStats(buildings: PlacedBuilding[], forschung: ResearchId[] = []): CityStats {
+// Die Werte der ganzen Stadt zu einem Zeitpunkt "zeit" (Baustellen zählen erst, wenn sie fertig sind).
+export function cityStats(
+  alleGebaeude: PlacedBuilding[], forschung: ResearchId[] = [],
+  extra: { zeit?: number; bauarbeiter?: number } = {}
+): CityStats {
+  const zeit = extra.zeit ?? Infinity;
+  // Nur was schon steht, zählt – mit dem Level, das gerade wirkt
+  const buildings = alleGebaeude.map(b => ({ ...b, level: wirksamesLevel(b, zeit) })).filter(b => b.level > 0);
   const verbunden = verbundeneGebaeude(buildings);
   const effekte = forschung.map(id => RESEARCH[id].effekt);
   const strassenBonus = STRASSEN_BONUS + effekte.reduce((s, e) => s + (e.strasse ?? 0), 0);
@@ -145,16 +202,19 @@ export function cityStats(buildings: PlacedBuilding[], forschung: ResearchId[] =
     const angeschlossen = verbunden.has(b.id) && b.type !== 'townhall';
     if (def.production) {
       const forschungBonus = effekte.reduce((s, e) => s + (e.produktion?.[b.type] ?? 0), 0);
-      const f = b.level * (1 + forschungBonus + (angeschlossen ? strassenBonus : 0));
+      const helfer = Math.min(b.arbeiter ?? 0, def.arbeitsplaetze ?? 0) * ARBEITER_BONUS;
+      const f = b.level * (1 + forschungBonus + (angeschlossen ? strassenBonus : 0) + helfer);
       produzenten.push({ id: b.id, stufe: def.stufe ?? 0, ein: mal(def.consumes, f), aus: mal(def.production, f) });
     }
-    if (def.population) population += Math.round(def.population * b.level * (angeschlossen ? 1 + strassenBonus : 1));
+    if (def.population) population += Math.round(einwohner(b.type, b.level) * (angeschlossen ? 1 + strassenBonus : 1));
     // Beim Rathaus zählt der Lagerplatz erst ab Level 2
     if (def.storage) extraStorage += def.storage * (b.type === 'townhall' ? b.level - 1 : b.level);
   }
   produzenten.sort((a, b) => a.stufe - b.stufe); // erst Rohstoffe, dann Verarbeitung
 
-  const steuerProMinute = population * steuerSatz;
+  const angestellte = alleGebaeude.reduce((s, b) => s + (b.arbeiter ?? 0), 0) + (extra.bauarbeiter ?? 0);
+  const loehneProMinute = alleGebaeude.reduce((s, b) => s + (b.arbeiter ?? 0), 0) * LOHN_PRO_MINUTE + (extra.bauarbeiter ?? 0) * BAUARBEITER_LOHN;
+  const steuerProMinute = Math.max(0, population * steuerSatz - loehneProMinute);
   const brotProMinute = population * BROT_PRO_EINWOHNER;
   const rates = emptyStock();
   for (const p of produzenten) {
@@ -167,6 +227,6 @@ export function cityStats(buildings: PlacedBuilding[], forschung: ResearchId[] =
   for (const r of RESOURCE_IDS) capacity[r] = r === 'gold' ? null : Math.round((BASE_STORAGE + extraStorage) * lagerBonus);
   return {
     ratesPerMinute: rates, capacity, population, produzenten,
-    steuerProMinute, sattBonusProMinute: population * SATT_BONUS, brotProMinute, verbunden: [...verbunden]
+    steuerProMinute, loehneProMinute, angestellte, sattBonusProMinute: population * SATT_BONUS, brotProMinute, verbunden: [...verbunden]
   };
 }
