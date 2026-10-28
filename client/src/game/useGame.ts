@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BUILDINGS, OFFLINE_LIMIT_SECONDS, RESEARCH, produce,
-  type BuildingType, type GameResponse, type GameState, type OfflineReport, type ResearchId, type Stock
+  type BuildingType, type GameResponse, type GameState, type OfflineReport, type ResearchId, type ResourceId, type Stock
 } from '@empire/shared';
-import { ApiError, api } from '../api/client';
+import { ApiError, api, type BlackjackZug } from '../api/client';
 
 export type Status = 'laden' | 'keinSpiel' | 'bereit' | 'fehler';
 export interface Meldung { id: number; text: string; art: 'info' | 'fehler' | 'erfolg' }
@@ -92,7 +92,9 @@ export function useGame() {
     abreissen: (id: number) => ausfuehren(() => api.abreissen(id)),
     abbauen: (nodeId: number) => ausfuehren(() => api.abbauen(nodeId), ['TOO_FAST']),
     forschen: (id: ResearchId) => ausfuehren(() => api.forschen(id)),
-    abholen: (aufgabeId: string) => ausfuehren(() => api.abholen(aufgabeId))
+    abholen: (aufgabeId: string) => ausfuehren(() => api.abholen(aufgabeId)),
+    blackjack: (rohstoff: ResourceId, menge: number) => ausfuehren(() => api.blackjack(rohstoff, menge)),
+    blackjackZug: (zug: BlackjackZug) => ausfuehren(() => api.blackjackZug(zug))
   }), [ausfuehren]);
 
   const serverJetzt = useCallback(() => Date.now() + zeitVersatz.current, []);

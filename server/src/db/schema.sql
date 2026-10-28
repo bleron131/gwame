@@ -78,3 +78,11 @@ CREATE TABLE IF NOT EXISTS processed_actions (
     PRIMARY KEY (save_id, request_id),
     FOREIGN KEY (save_id) REFERENCES game_saves(id) ON DELETE CASCADE
 );
+
+-- Die aktuelle (oder letzte) Blackjack-Runde. "data" enthält Karten und Stapel als JSON.
+-- Der Stapel liegt nur hier auf dem Server – der Browser sieht ihn nie.
+CREATE TABLE IF NOT EXISTS blackjack_games (
+    save_id INTEGER PRIMARY KEY,
+    data TEXT NOT NULL,
+    FOREIGN KEY (save_id) REFERENCES game_saves(id) ON DELETE CASCADE
+);

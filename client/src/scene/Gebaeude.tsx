@@ -336,6 +336,41 @@ function Baeckerei({ level }: { level: number }) {
   );
 }
 
+// ===== Spielhalle: Steinhaus mit lila Dach, Fahnen und leuchtendem Schild =====
+function Spielhalle({ level }: { level: number }) {
+  const stock = level >= 3 ? 2 : 1;
+  const z = -0.35;
+  const schild = useMemo(() => textTextur('♠ SPIELHALLE ♥', '#ffd45c', '#3a1f4d'), []);
+  const licht = useRef<Mesh>(null!);
+  // Das Schild blinkt ein bisschen wie Leuchtreklame
+  useFrame(({ clock }) => {
+    ((licht.current.material as unknown) as { emissiveIntensity: number }).emissiveIntensity = 0.5 + Math.abs(Math.sin(clock.elapsedTime * 2)) * 0.6;
+  });
+  const lila = dachFarben('#5b2a6e');
+  return (
+    <group>
+      {Array.from({ length: stock }, (_, e) => (
+        <group key={e}>
+          <Raum x={-0.5} z={z} ebene={e} w={{ W: 'wallWindowStone', N: 'wall', S: e === 0 ? 'wallDoor' : 'wallWindowShutters' }} />
+          <Raum x={0.5} z={z} ebene={e} w={{ E: 'wallWindowStone', N: 'wall', S: e === 0 ? 'wallWindowGlass' : 'wallWindowShutters' }} />
+        </group>
+      ))}
+      <Teil m="stadt/roofGable" p={[-0.5, stock, z]} farben={lila} />
+      <Teil m="stadt/roofGable" p={[0.5, stock, z]} farben={lila} />
+      <mesh ref={licht} position={[0, 0.9, z + 0.53]}>
+        <planeGeometry args={[schild.verhaeltnis * 0.2, 0.2]} />
+        <meshStandardMaterial map={schild.tex} emissive="#ffd45c" emissiveMap={schild.tex} emissiveIntensity={0.8} />
+      </mesh>
+      <Teil m="stadt/bannerGreen" p={[-0.5, stock - 1, z]} r={SEITE.S} />
+      <Teil m="stadt/bannerGreen" p={[0.5, stock - 1, z]} r={SEITE.S} />
+      <Teil m="stadt/lantern" p={[-0.95, 0, 0.55]} s={0.7} />
+      <Teil m="stadt/lantern" p={[0.95, 0, 0.55]} s={0.7} />
+      {level >= 2 && <Teil m="natur/plant_bushLarge" p={[0.5, 0, 0.65]} s={1.4} />}
+      {level >= 4 && <Teil m="stadt/fountainRound" p={[-0.4, 0, 0.7]} s={0.35} />}
+    </group>
+  );
+}
+
 function Modell({ b }: { b: PlacedBuilding }) {
   switch (b.type) {
     case 'townhall': return <Rathaus level={b.level} />;
@@ -348,6 +383,7 @@ function Modell({ b }: { b: PlacedBuilding }) {
     case 'sawmill': return <Saegewerk level={b.level} />;
     case 'bakery': return <Baeckerei level={b.level} />;
     case 'warehouse': return <Lagerhaus level={b.level} />;
+    case 'casino': return <Spielhalle level={b.level} />;
   }
 }
 
@@ -423,7 +459,9 @@ export const GEBAEUDE_MODELLE = [
   'natur/stump_roundDetailed', 'natur/stone_tallA', 'natur/stone_tallB', 'natur/stone_largeB', 'natur/stone_smallA', 'natur/stone_smallB', 'natur/pot_large',
   // Strasse und Produktionsketten
   'stadt/road', 'stadt/windmill', 'stadt/poles', 'stadt/stallRed', 'natur/crops_dirtDoubleRow', 'natur/crops_wheatStageB',
-  'natur/crops_cornStageD', 'natur/fence_simple', 'natur/log_large'
+  'natur/crops_cornStageD', 'natur/fence_simple', 'natur/log_large',
+  // Spielhalle
+  'stadt/wallWindowGlass', 'stadt/bannerGreen', 'stadt/fountainRound'
 ];
 
 export type { V3 };

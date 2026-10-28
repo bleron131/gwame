@@ -1,4 +1,4 @@
-import { BUILDINGS, RESOURCES, RESOURCE_IDS, type Amounts, type BuildingType } from '@empire/shared';
+import { BUILDINGS, RESOURCES, RESOURCE_IDS, maxEinsatz, type Amounts, type BuildingType } from '@empire/shared';
 
 const EINHEITEN = ['', 'K', 'M', 'B', 'T'];
 
@@ -29,6 +29,7 @@ export function wirkung(type: BuildingType, level: number): string[] {
   const def = BUILDINGS[type];
   const t: string[] = [];
   if (type === 'road') t.push('🛣️ +50 % für Nachbar-Gebäude');
+  if (type === 'casino') t.push(`🃏 Einsatz bis ${zahl(maxEinsatz('gold', level))} 🪙`);
   if ('production' in def && def.production) {
     for (const r of RESOURCE_IDS) {
       const v = (def.production as Amounts)[r];

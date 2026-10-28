@@ -4,16 +4,16 @@
 // Der Spielstand wird im Browser gespeichert (IndexedDB) und bleibt nach dem Schliessen erhalten.
 import initSqlJs, { type Database } from 'sql.js';
 import wasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
-import type { BuildingType, GameResponse, ResearchId } from '@empire/shared';
+import type { BuildingType, GameResponse, ResearchId, ResourceId } from '@empire/shared';
 import schema from '../../../server/src/db/schema.sql?raw';
 import { datenbankEinrichten } from '../../../server/src/db/migrationen';
 import { sqljsDb } from '../../../server/src/db/sqljsDb';
 import { GameError } from '../../../server/src/services/errors';
 import {
-  aufgabeAbholen, forschungStarten, gebaeudeAbreissen, gebaeudeBauen, gebaeudeVerbessern, naturAbbauen, spielLaden, stadtGruenden
+  aufgabeAbholen, blackjackSpielen, blackjackZug, forschungStarten, gebaeudeAbreissen, gebaeudeBauen, gebaeudeVerbessern, naturAbbauen, spielLaden, stadtGruenden
 } from '../../../server/src/services/gameApi';
 import type { DB } from '../../../server/src/db/db';
-import { ApiError } from './client';
+import { ApiError, type BlackjackZug } from './client';
 
 // ===== Speichern im Browser (IndexedDB) =====
 const SPEICHER = { name: 'empire-builder', tabelle: 'spielstand', schluessel: 'datenbank' };
@@ -87,5 +87,7 @@ export const browserApi = {
   abreissen: (gebaeudeId: number) => ausfuehren(db => gebaeudeAbreissen(db, Date.now(), id(), gebaeudeId)),
   abbauen: (nodeId: number) => ausfuehren(db => naturAbbauen(db, Date.now(), id(), nodeId)),
   forschen: (forschungId: ResearchId) => ausfuehren(db => forschungStarten(db, Date.now(), id(), forschungId)),
-  abholen: (aufgabeId: string) => ausfuehren(db => aufgabeAbholen(db, Date.now(), id(), aufgabeId))
+  abholen: (aufgabeId: string) => ausfuehren(db => aufgabeAbholen(db, Date.now(), id(), aufgabeId)),
+  blackjack: (rohstoff: ResourceId, menge: number) => ausfuehren(db => blackjackSpielen(db, Date.now(), id(), rohstoff, menge)),
+  blackjackZug: (zug: BlackjackZug) => ausfuehren(db => blackjackZug(db, Date.now(), id(), zug))
 };

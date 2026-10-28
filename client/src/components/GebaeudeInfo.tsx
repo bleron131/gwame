@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { BUILDINGS, DEMOLISH_REFUND, RESOURCES, RESOURCE_IDS, canAfford, upgradeCost, type GameState, type PlacedBuilding, type Stock } from '@empire/shared';
+import { BUILDINGS, DEMOLISH_REFUND, RESOURCES, RESOURCE_IDS, canAfford, maxEinsatz, upgradeCost, type GameState, type PlacedBuilding, type Stock } from '@empire/shared';
 import { mengenText, wirkung, zahl } from '../game/format';
 import { Blatt } from './Blatt';
 import { Kosten } from './Kosten';
 
 // Infos zu einem Gebäude: was es macht, verbessern, abreissen
-export function GebaeudeInfo({ b, state, vorrat, onVerbessern, onAbreissen, onZu }: {
+export function GebaeudeInfo({ b, state, vorrat, onVerbessern, onAbreissen, onSpielen, onZu }: {
   b: PlacedBuilding; state: GameState; vorrat: Stock;
-  onVerbessern: () => void; onAbreissen: () => void; onZu: () => void;
+  onVerbessern: () => void; onAbreissen: () => void; onSpielen: () => void; onZu: () => void;
 }) {
   const [sicher, setSicher] = useState(false);
   const def = BUILDINGS[b.type];
@@ -29,6 +29,15 @@ export function GebaeudeInfo({ b, state, vorrat, onVerbessern, onAbreissen, onZu
   return (
     <Blatt titel={`${def.name}`} untertitel={def.maxLevel > 1 ? `Level ${b.level} von ${def.maxLevel}` : undefined} icon={def.icon} onZu={onZu}>
       <p className="beschreibung">{def.description}</p>
+      {b.type === 'casino' && (
+        <>
+          <button className="knopf gross gelb" onClick={onSpielen}>🃏 An den Blackjack-Tisch{state.blackjack?.laeuft ? ' (Runde läuft)' : ''}</button>
+          <div className="werte">
+            <div><small>Höchsteinsatz Gold</small><b>🪙 {zahl(maxEinsatz('gold', b.level))}</b></div>
+            <div><small>Höchsteinsatz Rohstoffe</small><b>{zahl(maxEinsatz('wood', b.level))} je Sorte</b></div>
+          </div>
+        </>
+      )}
       {b.type === 'townhall' && (
         <div className="werte">
           <div><small>Einwohner</small><b>👥 {state.stats.population}</b></div>

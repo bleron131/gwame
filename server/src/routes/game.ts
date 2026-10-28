@@ -1,7 +1,7 @@
 import { Router, type Request } from 'express';
 import type { DB } from '../db/db';
 import {
-  aufgabeAbholen, forschungStarten, gebaeudeAbreissen, gebaeudeBauen, gebaeudeVerbessern, naturAbbauen, spielLaden, stadtGruenden
+  aufgabeAbholen, blackjackSpielen, blackjackZug, forschungStarten, gebaeudeAbreissen, gebaeudeBauen, gebaeudeVerbessern, naturAbbauen, spielLaden, stadtGruenden
 } from '../services/gameApi';
 
 // Die Adressen (API), über die der Browser mit dem Server spricht.
@@ -38,6 +38,12 @@ export function gameRouter(db: DB, uhr: () => number = Date.now): Router {
   });
   r.post('/quests/:id/claim', (req, res) => {
     res.json(aufgabeAbholen(db, uhr(), anfrageId(req), req.params.id));
+  });
+  r.post('/blackjack', (req, res) => {
+    res.json(blackjackSpielen(db, uhr(), anfrageId(req), req.body?.rohstoff, req.body?.menge));
+  });
+  r.post('/blackjack/:zug', (req, res) => {
+    res.json(blackjackZug(db, uhr(), anfrageId(req), req.params.zug));
   });
 
   return r;

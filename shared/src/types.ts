@@ -1,3 +1,4 @@
+import type { BlackjackSicht } from './blackjack';
 import type { BuildingType } from './buildings';
 import type { NodeType } from './nodes';
 import type { ResearchId } from './research';
@@ -42,6 +43,7 @@ export interface GameState {
   stats: CityStats;
   forschung: ForschungsStand;
   aufgabe: AufgabenStand;
+  blackjack: BlackjackSicht | null; // die letzte (oder laufende) Runde am Blackjack-Tisch
   serverTime: number;
 }
 

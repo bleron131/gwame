@@ -3,6 +3,7 @@ import { BUILDINGS, NODES, RESEARCH, RESEARCH_IDS, XP, canAfford, inGrid, upgrad
 import { AufgabenKarte } from './components/AufgabenKarte';
 import { AufgabenMenue } from './components/AufgabenMenue';
 import { BauMenue } from './components/BauMenue';
+import { BlackjackTisch } from './components/BlackjackTisch';
 import { Ladebild, NeueStadt, OfflineFenster } from './components/Bildschirme';
 import { ForschungMenue } from './components/ForschungMenue';
 import { GebaeudeInfo } from './components/GebaeudeInfo';
@@ -17,7 +18,7 @@ import { useGame, useLiveVorrat, type Spiel } from './game/useGame';
 import { Szene } from './scene/Szene';
 
 // Welches Menü ist gerade offen?
-type Menue = null | 'bauen' | 'forschung' | 'aufgaben' | 'einstellungen';
+type Menue = null | 'bauen' | 'forschung' | 'aufgaben' | 'blackjack' | 'einstellungen';
 
 export default function App() {
   const spiel = useGame();
@@ -195,6 +196,10 @@ function Oberflaeche(p: {
             if (r) spiel.melden(`🎁 Belohnung: ${mengenText(r.events?.gained ?? {})}`, 'erfolg');
           }} />
       )}
+      {p.menue === 'blackjack' && (
+        <BlackjackTisch state={state} vorrat={vorrat} onZu={() => p.setMenue(null)}
+          onSetzen={(r, m) => spiel.aktionen.blackjack(r, m)} onZug={z => spiel.aktionen.blackjackZug(z)} />
+      )}
       {p.menue === 'bauen' && <BauMenue state={state} vorrat={vorrat} onWahl={p.onPlatzieren} onZu={() => p.setMenue(null)} />}
       {gebaeude && (
         <GebaeudeInfo key={gebaeude.id} b={gebaeude} state={state} vorrat={vorrat} onZu={() => p.setAusgewaehlt(null)}
@@ -203,6 +208,7 @@ function Oberflaeche(p: {
             if (r) schwebtext(`⬆ Level ${gebaeude.level + 1}`, feldZuWelt(gebaeude.x, gebaeude.y), '#ffd45c');
           }}
           onAbreissen={async () => { if (await spiel.aktionen.abreissen(gebaeude.id)) p.setAusgewaehlt(null); }}
+          onSpielen={() => { p.setAusgewaehlt(null); p.setMenue('blackjack'); }}
         />
       )}
       {p.menue === 'einstellungen' && (

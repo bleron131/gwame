@@ -205,3 +205,40 @@ button:disabled { cursor: default; }
   .chip em { display: none; }
 }
 .chip em.minus { color: var(--rot); }
+
+/* ===== Blackjack ===== */
+.tisch { position: relative; width: min(100%, 460px); max-height: 94vh; overflow-y: auto; border-radius: 26px; padding: 16px 14px 14px; text-align: center;
+  background: radial-gradient(ellipse at 50% 30%, #2f8a55 0%, #1d6340 60%, #154a30 100%); border: 6px solid #7a4a24;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, .35), 0 20px 50px rgba(0, 0, 0, .5); animation: aufpoppen .3s cubic-bezier(.2, .9, .3, 1.3); }
+.tisch .zu { position: absolute; right: 10px; top: 10px; width: 38px; height: 38px; border-radius: 12px; background: rgba(0, 0, 0, .3); font-size: 16px; }
+.tisch h2 { margin: 2px 0 0; font-size: 24px; text-shadow: 0 2px 0 rgba(0, 0, 0, .3); }
+.regeln { margin: 4px 0 8px; font-size: 12px; color: #cfe8d8; }
+.hand { margin: 8px 0; min-height: 112px; }
+.hand.leer { display: grid; place-items: center; color: #cfe8d8; font-size: 15px; }
+.hand-kopf { font-size: 14px; color: #cfe8d8; margin-bottom: 4px; }
+.hand-kopf b { display: inline-block; min-width: 28px; padding: 1px 8px; margin-left: 4px; border-radius: 10px; background: rgba(0, 0, 0, .35); color: #fff; }
+.hand-kopf b.ueber { background: var(--rot); }
+.karten { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+.spielkarte { position: relative; width: 58px; height: 84px; border-radius: 8px; background: #fff; color: #1c2433; box-shadow: 0 4px 10px rgba(0, 0, 0, .35);
+  animation: kartenFlug .35s ease-out backwards; }
+.spielkarte.rot { color: #d12c2c; }
+.spielkarte .ecke { position: absolute; left: 5px; top: 3px; font-size: 14px; font-weight: 700; line-height: 1; text-align: center; }
+.spielkarte .mitte { position: absolute; inset: 0; display: grid; place-items: center; font-size: 32px; }
+.spielkarte.rueckseite { background: repeating-linear-gradient(45deg, #b8322f 0 6px, #9a2523 6px 12px); border: 4px solid #fff; }
+@keyframes kartenFlug { from { transform: translate(0, -120px) rotate(-12deg); opacity: 0; } }
+.ergebnis { margin: 6px auto; padding: 8px 12px; border-radius: 14px; font-weight: 700; font-size: 16px; width: max-content; max-width: 100%; animation: aufpoppen .35s; }
+.ergebnis.gut { background: linear-gradient(#ffe27a, #ffc21a); color: #3d2a00; }
+.ergebnis.schlecht { background: rgba(0, 0, 0, .4); color: #ffb0b0; }
+.ergebnis.neutral { background: rgba(0, 0, 0, .3); color: #fff; font-weight: 600; font-size: 14px; }
+.zuege { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+.zuege .knopf { padding: 12px 4px; font-size: 15px; }
+.knopf.blau { background: linear-gradient(#6cc0ff, #3fa3ff); color: #04294d; box-shadow: 0 4px 0 #2377c4; }
+.knopf.gelb { background: linear-gradient(#ffe27a, #ffc21a); color: #3d2a00; box-shadow: 0 4px 0 #c08f00; }
+.einsatz { margin-top: 8px; }
+.einsatz-wahl { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.chip-knopf { padding: 6px 10px; border-radius: 12px; background: rgba(0, 0, 0, .3); border: 2px solid transparent; font-size: 14px; font-weight: 600; }
+.chip-knopf.an { border-color: var(--gelb); background: rgba(0, 0, 0, .5); }
+.einsatz-menge { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 10px 0 6px; }
+.einsatz-menge b { font-size: 24px; min-width: 120px; }
+.einsatz-schnell { display: flex; gap: 6px; justify-content: center; }
+.einsatz-schnell button { padding: 6px 12px; border-radius: 10px; background: rgba(0, 0, 0, .3); font-weight: 600; }

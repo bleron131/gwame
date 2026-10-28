@@ -1,6 +1,7 @@
 import type { GameResponse } from '@empire/shared';
 import type { DB } from '../db/db';
 import { runAction } from './actionRunner';
+import { blackjackHalten, blackjackStarten, blackjackVerdoppeln, blackjackZiehen } from './blackjackService';
 import { build, demolish, upgrade } from './buildingService';
 import { GameError } from './errors';
 import { harvest } from './harvestService';
@@ -63,4 +64,20 @@ export function forschungStarten(db: DB, now: number, anfrage: string | undefine
 export function aufgabeAbholen(db: DB, now: number, anfrage: string | undefined, aufgabeId: unknown): GameResponse {
   const id = spielstand(db);
   return runAction(db, id, anfrage, now, () => claimQuest(db, id, aufgabeId));
+}
+
+// Blackjack: Einsatz setzen, ziehen, halten, verdoppeln
+export type BlackjackZug = 'ziehen' | 'halten' | 'verdoppeln';
+export function blackjackSpielen(db: DB, now: number, anfrage: string | undefined, rohstoff: unknown, menge: unknown): GameResponse {
+  const id = spielstand(db);
+  return runAction(db, id, anfrage, now, () => blackjackStarten(db, id, rohstoff, menge));
+}
+export function blackjackZug(db: DB, now: number, anfrage: string | undefined, zug: unknown): GameResponse {
+  const id = spielstand(db);
+  return runAction(db, id, anfrage, now, () => {
+    if (zug === 'ziehen') return blackjackZiehen(db, id);
+    if (zug === 'halten') return blackjackHalten(db, id);
+    if (zug === 'verdoppeln') return blackjackVerdoppeln(db, id);
+    throw new GameError('BAD_MOVE', 'Diesen Spielzug gibt es nicht.');
+  });
 }

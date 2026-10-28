@@ -4,6 +4,7 @@ export * from './buildings';
 export * from './nodes';
 export * from './research';
 export * from './quests';
+export * from './blackjack';
 export * from './rules';
 export * from './production';
 export * from './map';

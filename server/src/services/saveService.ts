@@ -5,6 +5,7 @@ import {
   type MapNode, type NodeType, type OfflineReport, type PlacedBuilding, type ResearchId, type Stock
 } from '@empire/shared';
 import type { DB } from '../db/db';
+import { blackjackSicht } from './blackjackService';
 import { GameError } from './errors';
 
 interface SaveRow {
@@ -185,6 +186,7 @@ export function loadState(db: DB, saveId: number, now: number): GameState {
     stats: cityStats(buildings, forschung.fertig),
     forschung,
     aufgabe: readAufgabe(db, saveId),
+    blackjack: blackjackSicht(db, saveId),
     serverTime: now
   };
 }

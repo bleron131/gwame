@@ -115,5 +115,11 @@ und wachsen mit dem Level. Die Farben werden in `client/src/scene/modelle.tsx` a
 - [x] **Strassen:** Gebäude mit Strasse zum Rathaus arbeiten 50 % mehr, man läuft schneller
 - [x] **Forschung:** 9 Verbesserungen mit Wartezeit (läuft auch offline weiter)
 - [x] **Aufgaben:** 15 Aufgaben von Greta vor dem Rathaus, mit Belohnungen
+- [x] **🃏 Spielhalle mit Blackjack** (ab Level 2): Einsatz in Gold oder Rohstoffen, gegen die Bank.
+  Die Karten mischt der Server (`shared/src/blackjack.ts`, `server/src/services/blackjackService.ts`) – schummeln geht nicht.
+- [ ] Häuser wachsen zu Mehrfamilienhäusern und Wohnblöcken
+- [ ] Fläche erweitern, neues Gebiet „Industrie“ mit Fabriken und Firmen
+- [ ] Einwohner anstellen (Arbeiter, Bauarbeiter), selbst bauen mit Brettern
+- [ ] PC mit Shop: Warenkorb, bestellen, Lieferung
 - [ ] Neue Gebiete, Zeitalter, Handel und Monumente
 - [ ] Veröffentlichen (Hosting, Backups, Benutzerkonten)

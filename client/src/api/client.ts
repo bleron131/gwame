@@ -1,4 +1,4 @@
-import type { ApiErrorBody, BuildingType, GameResponse, ResearchId } from '@empire/shared';
+import type { ApiErrorBody, BuildingType, GameResponse, ResearchId, ResourceId } from '@empire/shared';
 
 // Ein Fehler vom Server, mit verständlicher Meldung
 export class ApiError extends Error {
@@ -40,8 +40,12 @@ const serverApi = {
   abreissen: (id: number) => anfrage<GameResponse>('DELETE', `/buildings/${id}`),
   abbauen: (nodeId: number) => anfrage<GameResponse>('POST', `/nodes/${nodeId}/harvest`),
   forschen: (id: ResearchId) => anfrage<GameResponse>('POST', `/research/${id}`),
-  abholen: (aufgabeId: string) => anfrage<GameResponse>('POST', `/quests/${aufgabeId}/claim`)
+  abholen: (aufgabeId: string) => anfrage<GameResponse>('POST', `/quests/${aufgabeId}/claim`),
+  blackjack: (rohstoff: ResourceId, menge: number) => anfrage<GameResponse>('POST', '/blackjack', { rohstoff, menge }),
+  blackjackZug: (zug: BlackjackZug) => anfrage<GameResponse>('POST', `/blackjack/${zug}`)
 };
+
+export type BlackjackZug = 'ziehen' | 'halten' | 'verdoppeln';
 
 // GitHub-Pages-Version: Datenbank und Spielregeln laufen im Browser (wird erst bei Bedarf geladen)
 export const IM_BROWSER = import.meta.env.VITE_SPEICHER === 'browser';
@@ -57,6 +61,8 @@ export const api: typeof serverApi = IM_BROWSER
       abreissen: async i => (await browser()).browserApi.abreissen(i),
       abbauen: async i => (await browser()).browserApi.abbauen(i),
       forschen: async i => (await browser()).browserApi.forschen(i),
-      abholen: async i => (await browser()).browserApi.abholen(i)
+      abholen: async i => (await browser()).browserApi.abholen(i),
+      blackjack: async (r, m) => (await browser()).browserApi.blackjack(r, m),
+      blackjackZug: async z => (await browser()).browserApi.blackjackZug(z)
     }
   : serverApi;

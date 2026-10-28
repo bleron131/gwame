@@ -15,7 +15,7 @@ export interface BuildingDef {
   name: string;
   icon: string;
   description: string;
-  category: 'zentrum' | 'produktion' | 'wohnen' | 'lager' | 'weg';
+  category: 'zentrum' | 'produktion' | 'wohnen' | 'lager' | 'weg' | 'freizeit';
   cost: Amounts;
   production?: Amounts;
   consumes?: Amounts;
@@ -29,7 +29,7 @@ export interface BuildingDef {
 }
 
 export type BuildingType =
-  'townhall' | 'road' | 'lumberjack' | 'house' | 'quarry' | 'farm' | 'sawmill' | 'windmill' | 'warehouse' | 'bakery';
+  'townhall' | 'road' | 'lumberjack' | 'house' | 'quarry' | 'farm' | 'sawmill' | 'windmill' | 'warehouse' | 'bakery' | 'casino';
 
 export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   townhall: {
@@ -85,6 +85,11 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
     description: 'Backt aus Mehl Brot. Einwohner mit Brot zahlen doppelt Steuern.',
     cost: { gold: 300, stone: 60, planks: 40 }, consumes: { flour: 6 }, production: { bread: 8 }, stufe: 2,
     maxLevel: 10, unlockLevel: 4, buildable: true
+  },
+  casino: {
+    name: 'Spielhalle', icon: '🃏', category: 'freizeit',
+    description: 'Hier spielst du Blackjack gegen die Bank – mit Gold oder Rohstoffen. Höheres Level = höhere Einsätze.',
+    cost: { gold: 250, wood: 80, stone: 30 }, maxLevel: 5, unlockLevel: 2, buildable: true
   }
 };
 
